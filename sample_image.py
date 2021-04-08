@@ -91,5 +91,7 @@ if __name__ == "__main__":
 
     cv.imshow("", img)
     cv.waitKey(delay=100)
-    plt.imshow(img)
+    plt.plot(0, 0, label="[p(building), p(road), p(none)]", color='green')
+    plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+    plt.legend()
     plt.show()
