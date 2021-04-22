@@ -61,10 +61,29 @@ struct State
     # history of points
 end
 
+function make_observations()
+    a = Array{String}(undef, 102)
+    for i in 1:100
+        a[i] = string(i)
+    end
+    a[101] = "accept"
+    a[102] = "deny"
+    return a
+end
+
+function make_actions()
+    a = Array{String}(undef, 102)
+    for i in 1:100
+        a[i] = string(i)
+    end
+    return a
+    # deleteat!(a, findall(x->x=="1", a))
+end
+
 m = QuickPOMDP(
     #states = ["building", "road", "other"],
-    actions = ["building", "road", "other", "wait"],
-    observations = ["building", "road", "other", "accept", "deny"],
+    actions = make_actions(),
+    observations = make_observations(),
     initialstate = ImplicitDistribution(sample_initial_state), # hidden state distribution
     discount = 0.95,
 

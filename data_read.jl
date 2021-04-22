@@ -15,7 +15,6 @@ function read_data(file)
         building = parse(Float64,row.building)
         road = parse(Float64,row.road)
         none = parse(Float64,row.none)
-        print(typeof([x,y,r,building,road,none]))
         push!(random_data,[x,y,r,building,road,none]) #Add to list
     end
     return random_data
