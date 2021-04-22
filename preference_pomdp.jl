@@ -12,6 +12,9 @@ using SARSOP: SARSOPSolver
 using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
 using LinearAlgebra
 
+include("data_read.jl")
+random_data = data_read("random_data.csv")
+
 obs_to_idx = Dict("building"=>1, "road"=>2, "other"=>3)
 
 function beta(s, a)
