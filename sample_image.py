@@ -18,15 +18,16 @@ def write(file_name, d, labels):
             file.write(s_list)
 
 
-def sample(im, num_points=50, r=20):
+def sample(im, sample_points=None, num_points=50, r=20):
     """
     Sample uniformly at random num_points samples with radius r.
     class probability is (p1, p2, p3) = (building, road, nothing)
 
-    :param im:          The image
-    :param num_points:  The number of points to sample
-    :param r:           The radius of each point
-    :return:            list[point_x, point_y, r, p1, p2, p3]
+    :param im:              The image
+    :param sample_points:   A sample of points to use
+    :param num_points:      The number of points to sample
+    :param r:               The radius of each point
+    :return:                list[point_x, point_y, r, p1, p2, p3]
     """
     w = img.shape[1]
     h = img.shape[0]
@@ -36,7 +37,10 @@ def sample(im, num_points=50, r=20):
 
     points = []
     for i in range(num_points):
-        pt = np.array([np.random.randint(r, w-r), np.random.randint(r, h-r)])
+        if sample_points is not None:
+            pt = np.array(sample_points[i])
+        else:
+            pt = np.array([np.random.randint(r, w-r), np.random.randint(r, h-r)])
         too_close = False
         for p in points:
             if np.linalg.norm(p[0:2]-pt) <= 2*r:
@@ -45,7 +49,11 @@ def sample(im, num_points=50, r=20):
             continue
 
         t = im[pt[1]-r:pt[1]+r, pt[0]-r:pt[0]+r]
-        masked_img = cv.bitwise_or(t, t, mask=mask)
+        try:
+            masked_img = cv.bitwise_or(t, t, mask=mask)
+        except:
+            print("ERROR: pt={}, r={}".format(pt, r))
+            continue
         classes = np.zeros(3)
         for x in range(2*r):
             for y in range(2*r):
@@ -74,24 +82,43 @@ def sample(im, num_points=50, r=20):
 
 
 if __name__ == "__main__":
+    # TODO change these before running!
+    data = [
+        {'user_frontdoor' : [[544, 1316], [619, 1447], [827, 1668], [1193, 1793], [1482, 1926]]},
+        {'user_roadedges' : [[1864,1775],[779,1120],[1075,1660],[570,1135],[1032,1165]]},
+        {'user_roadintersection' : [[934, 1733], [1843, 1251], [1138, 1784], [1324, 2025], [1554, 878]]},
+        {'user_corners' : [[494, 1244], [375, 1314], [673, 1829], [1152, 1573], [1565, 1824]]},
+        {'user_backdoor' : [[1430, 1510], [1502, 1693], [750, 1836], [420, 1490], [583, 1811]]},
+        {'user_road' : [[734, 1357], [883, 1625], [1367, 930], [1403, 329], [1832, 1526]]},
+        {'user_building' : [[454, 1314], [578, 1533], [1321, 1610], [1414, 1786], [1306, 1725]]},
+        {'user_other' : [[524, 756], [1100, 733], [1778, 435], [1466, 1257], [598, 2003]]}
+            ]
+    DATA = 8
+    SAMPLES = list(data[DATA].values())[0]
+    IMAGE_NAME = 'images/Image1_segmented.png'
+    CSV_NAME = 'data/'+list(data[DATA].keys())[0]
+    SCALE_FACTOR = 30
+    RADIUS = 200
 
     # load image
-    img = cv.imread('images/segments.png')
+    img = cv.imread(IMAGE_NAME)
     # scale image
-    scale_percent = 30 # percent of original size
-    width = int(img.shape[1] * scale_percent / 100)
-    height = int(img.shape[0] * scale_percent / 100)
+    width = int(img.shape[1] * SCALE_FACTOR / 100)
+    height = int(img.shape[0] * SCALE_FACTOR / 100)
     dim = (width, height)
     img = cv.resize(img, dim)
+    radius = int(RADIUS*(SCALE_FACTOR/100))
 
     # TODO sample uniformly over classes, not (x,y) points
-
-    data = sample(img)
-    write("test.csv", data, ["x", "y", "r", "p(building)", "p(road)", "p(none)"])
+    samples = np.array(SAMPLES)*(SCALE_FACTOR/100)
+    samples = samples.astype(int)
+    data = sample(img, sample_points=samples, num_points=len(samples), r=30)
+    write(CSV_NAME+".csv", data, ["x", "y", "r", "building", "road", "none"])
 
     cv.imshow("", img)
     cv.waitKey(delay=100)
-    plt.plot(0, 0, label="[p(building), p(road), p(none)]", color='green')
+    plt.plot(0, 0, label="[building, road, none]", color='green')
     plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
     plt.legend()
-    plt.show()
+    plt.savefig(CSV_NAME+'.png')
+    #plt.show()
