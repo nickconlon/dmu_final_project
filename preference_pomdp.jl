@@ -12,26 +12,37 @@ using SARSOP: SARSOPSolver
 using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
 using LinearAlgebra
 
+obs_to_idx = Dict("building"=>1, "road"=>2, "other"=>3)
+
 function beta(s, a)
     #Return a 1-hot vector reflective of the observation. 
     #Is is similar towards asking "How much do you care about this class?"
+    
+    # zero rewards for waiting
     if a == "wait"
         return [0,0,0]
-    elseif a == "building"
+    end
+
+    # negative rewards if the agent is suggesting something wrong
+    if argmax(s.phi) != obs_to_idx[a]
+       return [-1,-1,-1]
+    end
+
+    # positive rewards if the agent is suggesting something right
+    if a == "building"
         return [1,0,0]
     elseif a == "road"
         return [0,1,0]
-    else
+    else # other
         return [0,0,1]
     end
 end
 
-
 function sample_initial_state(rng)
-    #Determine the starting state
-    phi = rand(rng, 3)  # Modified to be rand instead of randn
-
-    #Can be modified to take in the distribution of initial points
+    # Determine the starting state
+    # Modified to be rand instead of randn
+    # Can be modified to take in the distribution of initial points
+    phi = rand(rng, 3)
     return State(phi)
 end
 
@@ -44,15 +55,11 @@ m = QuickPOMDP(
     #states = ["building", "road", "other"],
     actions = ["building", "road", "other", "wait"],
     observations = ["building", "road", "other", "accept", "deny"],
-    initialstate = ImplicitDistribution(sample_initial_state), # hidden state right here
+    initialstate = ImplicitDistribution(sample_initial_state), # hidden state distribution
     discount = 0.95,
 
     transition = function (s, a)
-        if a == "wait"
-            return Deterministic(s) # 
-        else 
-            return Deterministic(s) # 
-        end
+        return Deterministic(s) # The state never changes
     end,
 
     observation = function (s, a, sp)
@@ -65,20 +72,20 @@ m = QuickPOMDP(
             # agent is suggesting 'a'
             # operator likes s.phi
             # suggest the max element (what does this mean?) of 'a' with probability 
-            p_accept = s.phi/sum(s.phi) # turn into probability. s.phi is continuous (x,y,z)
-            p_deny = 1 .- p_accept
-
-            #Simple method of only accepting the class that is most represented in the state
-            if actions(m)[argmax(p_accept)] == a  # If the suggested state is the largest of the phi distribution
-                return SparseCat(["building", "road", "other"], p_accept)
+            # agent is suggesting 'a', operator likes s.phi
+            if argmax(s.phi) == obs_to_idx[a]
+                return SparseCat(["accept", "deny"], [0.9, 0.1])
             else
-                return SparseCat(["building", "road", "other"], p_deny)
+                return SparseCat(["accept", "deny"], [0.1, 0.9])
             end
+
+
         end
     end,
 
     reward = function (s, a)
-        return dot(beta(s,a), s.phi)
+        r = dot(beta(s,a), s.phi)
+        return r
     end
     #Note: No terminal state
 )
@@ -96,8 +103,11 @@ for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_st
     println(typeof(ai))
 end
 
-#history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
 
 ## Display Monte Carlo tree for first decision
 # a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
 # inchrome(D3Tree(info[:tree], init_expand=3))
+#history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
+a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
+inchrome(D3Tree(info[:tree], init_expand=3))
+
