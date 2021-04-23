@@ -11,6 +11,7 @@ using Plots
 using SARSOP: SARSOPSolver
 using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
 using LinearAlgebra
+using Distances
 
 include("data_read.jl")
 random_data = read_data("data/random_data.csv")
@@ -18,41 +19,31 @@ user_road = read_data("data/user_road.csv")
 
 obs_to_idx = Dict("building"=>1, "road"=>2, "other"=>3)
 
-function beta(s, a)
-    #Return a 1-hot vector reflective of the observation. 
-    #Is is similar towards asking "How much do you care about this class?"
-    
+#Create beta Values
+beta_values = [random_data[i][4:6] for i in 1:length(random_data)]
+
+function beta(s, a)    
     # zero rewards for waiting
     if a == "wait"
         return [0,0,0]
-    end
-
-    # negative rewards if the agent is suggesting something wrong
-    if argmax(s.phi) != obs_to_idx[a]
-       return [-2,-2,-2]
-    end
-
-    # positive rewards if the agent is suggesting something right
-    if a == "building"
-        return [1,0,0]
-    elseif a == "road"
-        return [0,1,0]
-    else # other
-        return [0,0,1]
-    end
+    else
+        #Extract point distribution
+        s_num = parse(Int64,s)
+        vec = beta_values[s_num] 
+     end
 end
 
 function sample_initial_state(rng)
     # Determine the starting state
     # Modified to be rand instead of randn
     # Can be modified to take in the distribution of initial points
-    # phi = rand(rng, 3)
     POI = user_road
     #Take mean of observed points and add noise
     avg_b = mean([POI[a][4] for a in 1:length(POI)])+rand(rng)/10
     avg_r = mean([POI[a][5] for a in 1:length(POI)])+rand(rng)/10
     avg_n = mean([POI[a][6] for a in 1:length(POI)])+rand(rng)/10
     phi = [avg_b,avg_r,avg_n]
+    phi = phi/norm(phi) # Normalize
     return State(phi)
 end
 
@@ -62,23 +53,27 @@ struct State
 end
 
 function make_observations()
-    a = Array{String}(undef, 102)
-    for i in 1:100
+    total_act = length(random_data)
+    a = Array{String}(undef, total_act+2)
+    for i in 1:total_act
         a[i] = string(i)
     end
-    a[101] = "accept"
-    a[102] = "deny"
+    a[end-1] = "accept"
+    a[end] = "deny"
     return a
 end
 
 function make_actions()
-    a = Array{String}(undef, 102)
-    for i in 1:100
+    total_act = length(random_data)
+    a = Array{String}(undef, total_act+1)
+    for i in 1:total_act
         a[i] = string(i)
     end
+    a[end] = "wait"
     return a
     # deleteat!(a, findall(x->x=="1", a))
 end
+
 
 m = QuickPOMDP(
     #states = ["building", "road", "other"],
@@ -107,7 +102,6 @@ m = QuickPOMDP(
             else
                 return SparseCat(["accept", "deny"], [0.1, 0.9])
             end
-
 
         end
     end,
