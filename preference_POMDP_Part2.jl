@@ -25,6 +25,8 @@ points_data = test_points
 # Points operator has chosen
 user_data = user_building 
 
+
+
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
 
@@ -39,15 +41,26 @@ function beta(s, a)
      end
 end
 
+function create_state()
+    POI = user_data
+    #Take mean of observed points and add noise
+    avg_b = mean([POI[a][4] for a in 1:length(POI)])
+    avg_r = mean([POI[a][5] for a in 1:length(POI)])
+    avg_n = mean([POI[a][6] for a in 1:length(POI)])
+    return [avg_b,avg_r,avg_n]
+end
+
+global_phi = create_state()
+
 function sample_initial_state(rng)
     # Determine the starting state
     # Modified to be rand instead of randn
     # Can be modified to take in the distribution of initial points
     POI = user_data
     #Take mean of observed points and add noise
-    avg_b = mean([POI[a][4] for a in 1:length(POI)])+rand(rng)/10
-    avg_r = mean([POI[a][5] for a in 1:length(POI)])+rand(rng)/10
-    avg_n = mean([POI[a][6] for a in 1:length(POI)])+rand(rng)/10
+    avg_b = global_phi[1]+rand(rng)/10
+    avg_r = global_phi[2]+rand(rng)/10
+    avg_n = global_phi[3]+rand(rng)/10
     phi = [avg_b,avg_r,avg_n]
     phi = phi/norm(phi) # Normalize
     return State(phi, [])
@@ -163,40 +176,54 @@ planner = solve(solver, pomdp)
 #deleteat!(beta_values, findall(x->x==vec, beta_values))
 
 
-suggestions_received = [0]
-#for suggestions in 1:4
-while suggestions_received[1] < 2
-    for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
-        println("State was $s,")
-        println("action $a was taken,")
-        println("and observation $o was received.\n")
-        # remove o if o is a point
-        # remove a if o is accept
-        println(observations_list)
-        println(actions_list)
-        if o == "accept"
-            #remove a from actions & observations
-            deleteat!(actions_list, findall(x->x==a, actions_list))
-            deleteat!(observations_list, findall(x->x==a, observations_list))
-            suggestions_received[1]+=1
-            break
-        end
-        #if o == "deny"
-        #    #remove a from actions & observations
-        #    deleteat!(actions_list, findall(x->x==a, actions_list))
-        #    deleteat!(observations_list, findall(x->x==a, observations_list))
-        #end
-        if o != "accept" || o != "deny" || o != "no response"
-            # remove o from actions & observations
-            deleteat!(actions_list, findall(x->x==o, actions_list))
-            deleteat!(observations_list, findall(x->x==o, observations_list))
-        end
-        if length(observations_list) <= 3 || length(actions_list) <= 1 || suggestions_received[1] >=2
-            println("out of suggestions")
-            break
+function _run()
+    suggestions_received = [0]
+    #for suggestions in 1:4
+    while suggestions_received[1] < 2
+        # update the state.phi values on before re initializing the POMCP
+        #global_phi[1] = 0
+        #global_phi[3] = 1
+
+        pomdp =  m  # Define POMDP
+        up = BootstrapFilter(pomdp, 1000)  # Unweighted particle filter
+        solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true)
+        planner = solve(solver, pomdp)
+        for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
+            println(s.phi)
+            println("State was $s,")
+            println("action $a was taken,")
+            println("and observation $o was received.\n")
+        
+            # remove o if o is a point
+            # remove a if o is accept
+            println(observations_list)
+            println(actions_list)
+            if o == "accept"
+                #remove a from actions & observations
+                deleteat!(actions_list, findall(x->x==a, actions_list))
+                deleteat!(observations_list, findall(x->x==a, observations_list))
+                suggestions_received[1]+=1
+                break
+            end
+            #if o == "deny"
+            #    #remove a from actions & observations
+            #    deleteat!(actions_list, findall(x->x==a, actions_list))
+            #    deleteat!(observations_list, findall(x->x==a, observations_list))
+            #end
+            if o != "accept" || o != "deny" || o != "no response"
+                # remove o from actions & observations
+                deleteat!(actions_list, findall(x->x==o, actions_list))
+                deleteat!(observations_list, findall(x->x==o, observations_list))
+            end
+            if length(observations_list) <= 3 || length(actions_list) <= 1 || suggestions_received[1] >=2
+                println("out of suggestions")
+                break
+            end
         end
     end
 end
+
+_run()
 
 
 # solve A = [a1,..,ai,..an]
