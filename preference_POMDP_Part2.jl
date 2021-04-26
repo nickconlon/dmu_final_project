@@ -60,12 +60,13 @@ end
 
 function make_observations()
     total_act = length(points_data)
-    a = Array{String}(undef, total_act+2)
+    a = Array{String}(undef, total_act+3)
     for i in 1:total_act
         a[i] = string(i)
     end
     a[end-1] = "accept"
     a[end] = "deny"
+    a[end-2] = "no response"
     return a
 end
 
@@ -84,10 +85,13 @@ function similarity(x, y)
     return 1-cosine_dist(x, y)
 end
 
+actions_list = make_actions()
+observations_list = make_observations()
+initial_state = 0
+
 m = QuickPOMDP(
-    #states = ["building", "road", "other"],
-    actions = make_actions(),
-    observations = make_observations(),
+    actions = actions_list,
+    observations = observations_list,
     initialstate = ImplicitDistribution(sample_initial_state), # hidden state distribution
     discount = 0.95,
 
@@ -97,10 +101,6 @@ m = QuickPOMDP(
 
     observation = function (s, a, sp)
         if a == "wait"
-            best = argmax(s.phi)
-            p = [0.1,0.1,0.1]
-            p[best] = 0.8
-
             # points already accepted should get zero probability mass
             # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim(p1, s.phi), sim(p2, s.phi), ...)
             
@@ -110,13 +110,17 @@ m = QuickPOMDP(
             # else
 
             A = []
-            for b in enumerate(beta_values)
-                idx = b[1]
-                beta = b[2] #(x,y,z)
-                sim = similarity(s.phi, beta)
-                push!(A,sim)
+            for (i, a) in enumerate(actions(m))
+                if a != "wait"
+                    b = beta_values[parse(Int64,a)]#(x,y,z)
+                    sim = similarity(s.phi, b)
+                    push!(A,sim)
+                end
             end
-            A = A/norm(A)
+            if length(A) == 0
+                println(a)
+            end
+            A = (length(A)>0 && sum(A)>0 ) ? A/norm(A) : A
             available_actions = actions(m)[1:end-1]
             return SparseCat(available_actions, A)
             # distribution over all operator add points
@@ -150,17 +154,68 @@ solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in
 planner = solve(solver, pomdp)
 
 #Step through simulates process
-for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
-    println("State was $s,")
-    println("action $a was taken,")
-    println("and observation $o was received.\n")
+#actions_test
+#println(observations(pomdp))
+#deleteat!(actions_list, findall(x->x=="3", actions_list))
+#deleteat!(observations_list, findall(x->x=="3", observations_list))
+#println(observations(pomdp))
+#vec = beta_values[3]
+#deleteat!(beta_values, findall(x->x==vec, beta_values))
+
+
+suggestions_received = [0]
+#for suggestions in 1:4
+while suggestions_received[1] < 2
+    for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
+        println("State was $s,")
+        println("action $a was taken,")
+        println("and observation $o was received.\n")
+        # remove o if o is a point
+        # remove a if o is accept
+        println(observations_list)
+        println(actions_list)
+        if o == "accept"
+            #remove a from actions & observations
+            deleteat!(actions_list, findall(x->x==a, actions_list))
+            deleteat!(observations_list, findall(x->x==a, observations_list))
+            suggestions_received[1]+=1
+            break
+        end
+        #if o == "deny"
+        #    #remove a from actions & observations
+        #    deleteat!(actions_list, findall(x->x==a, actions_list))
+        #    deleteat!(observations_list, findall(x->x==a, observations_list))
+        #end
+        if o != "accept" || o != "deny" || o != "no response"
+            # remove o from actions & observations
+            deleteat!(actions_list, findall(x->x==o, actions_list))
+            deleteat!(observations_list, findall(x->x==o, observations_list))
+        end
+        if length(observations_list) <= 3 || length(actions_list) <= 1 || suggestions_received[1] >=2
+            println("out of suggestions")
+            break
+        end
+    end
 end
 
+
+# solve A = [a1,..,ai,..an]
+# simulate, suggest, accept ai, remove ai from actions
+# solve A = A/ai
+# simulate, suggest, accept ai, remove ai from actions
+
+#OR
+
+# solve A = [a1,..,ai,..an]
+# simulate, suggest, accept ai, remove ai from actions
+# can we resimulate with updated actions?
+# simulate, suggest, accept ai, remove ai from actions
 
 # ## Display Monte Carlo tree for first decision
 # a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
 # inchrome(D3Tree(info[:tree], init_expand=3))
-history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
-a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
-inchrome(D3Tree(info[:tree], init_expand=3))
+#history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
+#a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
+#inchrome(D3Tree(info[:tree], init_expand=3))
 
+println("Done")
