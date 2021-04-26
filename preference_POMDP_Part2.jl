@@ -51,6 +51,8 @@ function create_state()
 end
 
 global_phi = create_state()
+i_var = 0.25
+global_cov = [i_var^2 0 0; 0 i_var^2 0; 0 0 i_var^2]
 
 function sample_initial_state(rng)
     # Determine the starting state
@@ -61,14 +63,33 @@ function sample_initial_state(rng)
     avg_b = global_phi[1]+rand(rng)/10
     avg_r = global_phi[2]+rand(rng)/10
     avg_n = global_phi[3]+rand(rng)/10
-    phi = [avg_b,avg_r,avg_n]
+    phi = [avg_b, avg_r, avg_n]
     phi = phi/norm(phi) # Normalize
-    return State(phi, [])
+   
+    init_cov = global_cov
+    return State(phi,init_cov)
 end
 
 struct State
     phi::Vector{Float64}
-    history::Vector{String}
+    cov::Array{Float64,2}
+end
+
+function KalmanUpdate(b,o)
+    #Assume that all observations update all classes
+    o_var = 0.1
+    cov_o = [o_var^2 0 0; 0 o_var^2 0; 0 0 o_var^2]
+
+    #Time Update
+    mu_p = b.phi  # Increment the mean
+    cov_p = b.cov # Increment the covariance
+    K = cov_p*I*inv(cov_p+cov_o)  #Kalman Gain
+
+    #Measurement Update
+    mu_b = mu_p + K*(o-mu_p)
+    cov_b = (I-K)*cov_p
+
+    return State([mu_b[1],mu_b[2],mu_b[3]],cov_b)
 end
 
 function make_observations()
@@ -100,7 +121,7 @@ end
 
 actions_list = make_actions()
 observations_list = make_observations()
-initial_state = 0
+# initial_state = sample_initial_state(MersenneTwister(1))
 
 m = QuickPOMDP(
     actions = actions_list,
@@ -116,12 +137,6 @@ m = QuickPOMDP(
         if a == "wait"
             # points already accepted should get zero probability mass
             # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim(p1, s.phi), sim(p2, s.phi), ...)
-            
-            # get point p greatest sim
-            # s.history.push!(p)
-            # return SparseCat([p], [1])
-            # else
-
             A = []
             for (i, a) in enumerate(actions(m))
                 if a != "wait"
@@ -130,10 +145,7 @@ m = QuickPOMDP(
                     push!(A,sim)
                 end
             end
-            if length(A) == 0
-                println(a)
-            end
-            A = (length(A)>0 && sum(A)>0 ) ? A/norm(A) : A
+            A = (length(A)>0 && sum(A)>0 ) ? A/norm(A) : A  #Catch cases where A is empty
             available_actions = actions(m)[1:end-1]
             return SparseCat(available_actions, A)
             # distribution over all operator add points
@@ -178,16 +190,17 @@ planner = solve(solver, pomdp)
 
 function _run()
     suggestions_received = [0]
+
     #for suggestions in 1:4
     while suggestions_received[1] < 2
         # update the state.phi values on before re initializing the POMCP
         #global_phi[1] = 0
         #global_phi[3] = 1
-
         pomdp =  m  # Define POMDP
         up = BootstrapFilter(pomdp, 1000)  # Unweighted particle filter
         solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true)
         planner = solve(solver, pomdp)
+        println("----STEP----")
         for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
             println(s.phi)
             println("State was $s,")
@@ -202,14 +215,41 @@ function _run()
                 #remove a from actions & observations
                 deleteat!(actions_list, findall(x->x==a, actions_list))
                 deleteat!(observations_list, findall(x->x==a, observations_list))
+                
+                #Increment suggestions
                 suggestions_received[1]+=1
+
+                new_state = KalmanUpdate(s,beta_values[parse(Int64,a)]) #Update estimate of mean and covariance
+                # Update state to account for observation
+                global_phi[1] = new_state.phi[1]
+                global_phi[2] = new_state.phi[2]
+                global_phi[3] = new_state.phi[3]
+                global_cov[1:3] = new_state.cov[1:3]
+                global_cov[4:6] = new_state.cov[4:6]
+                global_cov[7:9] = new_state.cov[7:9]
                 break
             end
-            #if o == "deny"
-            #    #remove a from actions & observations
-            #    deleteat!(actions_list, findall(x->x==a, actions_list))
-            #    deleteat!(observations_list, findall(x->x==a, observations_list))
-            #end
+
+            if o == "deny"
+                #If the user denies a suggestion, kick out potential point from action and observation space 
+                deleteat!(actions_list, findall(x->x==a, actions_list))
+                deleteat!(observations_list, findall(x->x==a, observations_list))
+
+                #Update coveriance to increase uncertainty
+                # new_cov= global_cov*1.2
+                # new_cov = global_cov/similarity(a,global_phi)
+                inv_beta = ones(3) - beta_values[parse(Int64,a)]
+                new_state = KalmanUpdate(s,inv_beta)
+                global_phi[1] = new_state.phi[1]
+                global_phi[2] = new_state.phi[2]
+                global_phi[3] = new_state.phi[3]
+                global_cov[1:3] = new_state.cov[1:3]
+                global_cov[4:6] = new_state.cov[4:6]
+                global_cov[7:9] = new_state.cov[7:9]
+                # println(global_cov)
+                break
+            end
+            #If the user selects a point 
             if o != "accept" || o != "deny" || o != "no response"
                 # remove o from actions & observations
                 deleteat!(actions_list, findall(x->x==o, actions_list))
@@ -220,27 +260,13 @@ function _run()
                 break
             end
         end
+
     end
 end
 
 _run()
 
-
-# solve A = [a1,..,ai,..an]
-# simulate, suggest, accept ai, remove ai from actions
-# solve A = A/ai
-# simulate, suggest, accept ai, remove ai from actions
-
-#OR
-
-# solve A = [a1,..,ai,..an]
-# simulate, suggest, accept ai, remove ai from actions
-# can we resimulate with updated actions?
-# simulate, suggest, accept ai, remove ai from actions
-
 # ## Display Monte Carlo tree for first decision
-# a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
-# inchrome(D3Tree(info[:tree], init_expand=3))
 #history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
 #a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
 #inchrome(D3Tree(info[:tree], init_expand=3))
