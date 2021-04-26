@@ -14,14 +14,20 @@ using LinearAlgebra
 using Distances
 
 include("data_read.jl")
+include("plot_image.jl")
+
 random_data = read_data("data/random_data.csv")
+random_data_300 = read_data("data/random_data_300.csv")
 user_frontdoor = read_data("data/user_frontdoor.csv")
+user_backdoor = read_data("data/user_backdoor.csv")
 user_building = read_data("data/user_building.csv")
 user_road = read_data("data/user_road.csv")
 test_points = read_data("data/user_test.csv")
+user_road_edges = read_data("data/user_roadedges.csv")
+user_corners = read_data("data/user_corners.csv")
 
 # Available points
-points_data = test_points
+points_data = random_data_300 #* (100/30)
 # Points operator has chosen
 user_data = user_building 
 
@@ -51,7 +57,7 @@ function create_state()
 end
 
 global_phi = create_state()
-i_var = 0.25
+i_var = 0.1
 global_cov = [i_var^2 0 0; 0 i_var^2 0; 0 0 i_var^2]
 
 function sample_initial_state(rng)
@@ -77,7 +83,7 @@ end
 
 function KalmanUpdate(b,o)
     #Assume that all observations update all classes
-    o_var = 0.1
+    o_var = 0.05
     cov_o = [o_var^2 0 0; 0 o_var^2 0; 0 0 o_var^2]
 
     #Time Update
@@ -154,6 +160,9 @@ m = QuickPOMDP(
             # operator likes s.phi
             # points already accepted should get denied
             sim = similarity(s.phi, beta_values[parse(Int64,a)])
+            #sim = sim*0.5
+            #sim = sim/norm(sim)
+
             p = [sim, 1-sim]
             return SparseCat(["accept", "deny"], p)
         end
@@ -189,10 +198,15 @@ planner = solve(solver, pomdp)
 
 
 function _run()
+    suggestions_allowed = 5
+    accepted_points = []
+    user_points = []
+    denied_points = []
+
     suggestions_received = [0]
 
     #for suggestions in 1:4
-    while suggestions_received[1] < 2
+    while suggestions_received[1] < suggestions_allowed
         # update the state.phi values on before re initializing the POMCP
         #global_phi[1] = 0
         #global_phi[3] = 1
@@ -227,6 +241,9 @@ function _run()
                 global_cov[1:3] = new_state.cov[1:3]
                 global_cov[4:6] = new_state.cov[4:6]
                 global_cov[7:9] = new_state.cov[7:9]
+
+                # Save off the point
+                push!(accepted_points, a)
                 break
             end
 
@@ -247,6 +264,8 @@ function _run()
                 global_cov[4:6] = new_state.cov[4:6]
                 global_cov[7:9] = new_state.cov[7:9]
                 # println(global_cov)
+                # Save off the point
+                push!(denied_points, a)
                 break
             end
             #If the user selects a point 
@@ -254,18 +273,44 @@ function _run()
                 # remove o from actions & observations
                 deleteat!(actions_list, findall(x->x==o, actions_list))
                 deleteat!(observations_list, findall(x->x==o, observations_list))
+
+                new_state = KalmanUpdate(s,beta_values[parse(Int64,o)]) #Update estimate of mean and covariance
+                # Update state to account for observation
+                global_phi[1] = new_state.phi[1]
+                global_phi[2] = new_state.phi[2]
+                global_phi[3] = new_state.phi[3]
+                global_cov[1:3] = new_state.cov[1:3]
+                global_cov[4:6] = new_state.cov[4:6]
+                global_cov[7:9] = new_state.cov[7:9]
+
+                # Save off the point
+                push!(user_points, o)
             end
-            if length(observations_list) <= 3 || length(actions_list) <= 1 || suggestions_received[1] >=2
+            if length(observations_list) <= 3 || length(actions_list) <= 1 || suggestions_received[1] >= suggestions_allowed
                 println("out of suggestions")
                 break
             end
         end
-
     end
+    return user_points, accepted_points, denied_points
 end
 
-_run()
+user_points, accepted_points, denied_points = _run()
 
+println(user_points)
+println(accepted_points)
+println(denied_points)
+
+u_x,u_y = extract_xy(user_points,points_data)
+a_x,a_y = extract_xy(accepted_points,points_data)
+d_x,d_y = extract_xy(denied_points,points_data)
+i_x = [user_data[i][1] for i in 1:length(user_data)]
+i_y = [user_data[i][2] for i in 1:length(user_data)]
+
+println(a_x)
+println(a_y)
+
+plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/test.png")
 # ## Display Monte Carlo tree for first decision
 #history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
 #a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
