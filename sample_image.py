@@ -93,7 +93,7 @@ def sample_from_data():
         {'user_building': [[454, 1314], [578, 1533], [1321, 1610], [1414, 1786], [1306, 1725]]},
         {'user_other': [[524, 756], [1100, 733], [1778, 435], [1466, 1257], [598, 2003]]}
     ]
-    DATA = 8
+    DATA = 1
     SAMPLES = list(data[DATA].values())[0]
     IMAGE_NAME = 'images/Image1_segmented.png'
     CSV_NAME = 'data/' + list(data[DATA].keys())[0]
@@ -112,7 +112,7 @@ def sample_from_data():
     # TODO sample uniformly over classes, not (x,y) points
     samples = np.array(SAMPLES) * (SCALE_FACTOR / 100)
     samples = samples.astype(int)
-    data = sample(img, sample_points=samples, num_points=len(samples), r=30)
+    data = sample(img, sample_points=samples, num_points=len(samples), r=75)
     write(CSV_NAME + ".csv", data, ["x", "y", "r", "building", "road", "none"])
 
     cv.imshow("", img)
@@ -141,7 +141,7 @@ def sample_raw():
     radius = int(RADIUS * (SCALE_FACTOR / 100))
 
     # TODO sample uniformly over classes, not (x,y) points
-    data = sample(img, sample_points=None, num_points=300, r=50)
+    data = sample(img, sample_points=None, num_points=300, r=75)
     write(CSV_NAME + ".csv", data, ["x", "y", "r", "building", "road", "none"])
 
     cv.imshow("", img)
@@ -153,4 +153,4 @@ def sample_raw():
     plt.show()
 
 if __name__ == "__main__":
-    sample_raw()
+    sample_from_data()
