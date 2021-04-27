@@ -22,7 +22,7 @@ user_frontdoor = read_data("data/user_frontdoor.csv")
 user_backdoor = read_data("data/user_backdoor.csv")
 user_building = read_data("data/user_building.csv")
 user_road = read_data("data/user_road.csv")
-test_points = read_data("data/user_test.csv")
+#test_points = read_data("data/user_test.csv")
 user_road_edges = read_data("data/user_roadedges.csv")
 user_corners = read_data("data/user_corners.csv")
 user_other = read_data("data/user_other.csv")
@@ -30,8 +30,7 @@ user_other = read_data("data/user_other.csv")
 # Available points
 points_data = random_data_300 #* (100/30)
 # Points operator has chosen
-user_data = user_building
-
+user_data = user_backdoor
 
 
 #Create beta Values
@@ -54,13 +53,16 @@ function create_state()
     avg_b = mean([POI[a][4] for a in 1:length(POI)])
     avg_r = mean([POI[a][5] for a in 1:length(POI)])
     avg_n = mean([POI[a][6] for a in 1:length(POI)])
+    cov_b = std([POI[a][4] for a in 1:length(POI)])
+    cov_r = std([POI[a][5] for a in 1:length(POI)])
+    cov_n = std([POI[a][6] for a in 1:length(POI)])
     vec = [avg_b,avg_r,avg_n]
-    return vec = vec/norm(vec)
+    vec = vec/norm(vec)
+    return vec,cov_b, cov_r,cov_n
 end
 
-global_phi = create_state()
-i_var = 0.1
-global_cov = [i_var^2 0 0; 0 i_var^2 0; 0 0 i_var^2]
+global_phi,cov_b,cov_r,cov_n = create_state()
+global_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
 
 function sample_initial_state(rng)
     # Determine the starting state
@@ -88,7 +90,7 @@ end
 
 function KalmanUpdate(b,o)
     #Assume that all observations update all classes
-    o_var = 0.1
+    o_var = 0.15
     cov_o = [o_var^2 0 0; 0 o_var^2 0; 0 0 o_var^2]
 
     #Time Update
@@ -148,24 +150,32 @@ m = QuickPOMDP(
         if a == "wait"
             # points already accepted should get zero probability mass
             # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim(p1, s.phi), sim(p2, s.phi), ...)
-            A = []
-            for (i, a) in enumerate(actions(m))
-                if a != "wait"
-                    b = beta_values[parse(Int64,a)]#(x,y,z)
-                    sim = similarity(s.phi, b)
-                    push!(A,sim)
+            p_a = []
+            acts = []
+            for (i, act) in enumerate(actions(m))
+                if act != "wait"
+                    b = beta_values[parse(Int64,act)]#(x,y,z)
+                    out = create_state()
+                    sim = similarity(out[1], b)
+                    if sim < 0.5
+                        sim = 0.0001
+                    else
+                        sim = sim*sim
+                    end
+                    push!(p_a,sim)
+                    push!(acts, act)
                 end
             end
-            A = (length(A)>0 && sum(A)>0 ) ? A/norm(A) : A  #Catch cases where A is empty
-            available_actions = actions(m)[1:end-1]
-            return SparseCat(available_actions, A)
+            p_a = length(p_a)>0 ? p_a/norm(p_a) : p_a  #Catch cases where A is empty
+            #available_actions = actions(m)[1:end-1]
+            return SparseCat(acts, p_a)
             # distribution over all operator add points
         else
             # agent is suggesting 'a'
             # operator likes s.phi
             # points already accepted should get denied
             sim = similarity(s.phi, beta_values[parse(Int64,a)])
-            sim = sim*0.5
+            sim = sim
             # sim = sim/norm(sim)
 
             p = [sim, 1-sim]
@@ -203,7 +213,7 @@ planner = solve(solver, pomdp)
 
 
 function _run()
-    suggestions_allowed = 3
+    suggestions_allowed = 4
     accepted_points = []
     user_points = []
     denied_points = []

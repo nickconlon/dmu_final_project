@@ -42,11 +42,11 @@ def sample(im, sample_points=None, num_points=50, r=20):
         else:
             pt = np.array([np.random.randint(r, w-r), np.random.randint(r, h-r)])
         too_close = False
-        for p in points:
-            if np.linalg.norm(p[0:2]-pt) <= 2*r:
-                too_close = True
-        if too_close:
-            continue
+        #for p in points:
+        #    if np.linalg.norm(p[0:2]-pt) <= 2*r:
+        #        too_close = True
+        #if too_close:
+        #    continue
 
         t = im[pt[1]-r:pt[1]+r, pt[0]-r:pt[0]+r]
         try:
@@ -93,9 +93,9 @@ def sample_from_data():
         {'user_building': [[454, 1314], [578, 1533], [1321, 1610], [1414, 1786], [1306, 1725]]},
         {'user_other': [[524, 756], [1100, 733], [1778, 435], [1466, 1257], [598, 2003]]}
     ]
-    DATA = 1
+    DATA = 0
     SAMPLES = list(data[DATA].values())[0]
-    IMAGE_NAME = 'images/Image1_segmented.png'
+    IMAGE_NAME = 'images/hand_segmentation.png'
     CSV_NAME = 'data/' + list(data[DATA].keys())[0]
     SCALE_FACTOR = 100
     RADIUS = 200
@@ -126,7 +126,7 @@ def sample_from_data():
 def sample_raw():
     DATA = 8
     SAMPLES = None
-    IMAGE_NAME = 'images/Image1_segmented.png'
+    IMAGE_NAME = 'images/hand_segmentation.png'
     CSV_NAME = 'data/random_data_300'
     SCALE_FACTOR = 100
     RADIUS = 200
@@ -141,16 +141,19 @@ def sample_raw():
     radius = int(RADIUS * (SCALE_FACTOR / 100))
 
     # TODO sample uniformly over classes, not (x,y) points
-    data = sample(img, sample_points=None, num_points=300, r=75)
+    data = sample(img, sample_points=None, num_points=350, r=75)
     write(CSV_NAME + ".csv", data, ["x", "y", "r", "building", "road", "none"])
 
     cv.imshow("", img)
+    cv.imwrite(CSV_NAME + '.png', img)
     cv.waitKey(delay=100)
+
     plt.plot(0, 0, label="[building, road, none]", color='green')
     plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB))
     plt.legend()
-    plt.savefig(CSV_NAME + '.png')
+    #plt.savefig(CSV_NAME + '.png')
     plt.show()
 
 if __name__ == "__main__":
-    sample_from_data()
+    #sample_from_data()
+    sample_raw()
