@@ -25,11 +25,12 @@ user_road = read_data("data/user_road.csv")
 test_points = read_data("data/user_test.csv")
 user_road_edges = read_data("data/user_roadedges.csv")
 user_corners = read_data("data/user_corners.csv")
+user_other = read_data("data/user_other.csv")
 
 # Available points
 points_data = random_data_300 #* (100/30)
 # Points operator has chosen
-user_data = user_building 
+user_data = user_building
 
 
 
@@ -53,7 +54,8 @@ function create_state()
     avg_b = mean([POI[a][4] for a in 1:length(POI)])
     avg_r = mean([POI[a][5] for a in 1:length(POI)])
     avg_n = mean([POI[a][6] for a in 1:length(POI)])
-    return [avg_b,avg_r,avg_n]
+    vec = [avg_b,avg_r,avg_n]
+    return vec = vec/norm(vec)
 end
 
 global_phi = create_state()
@@ -64,13 +66,16 @@ function sample_initial_state(rng)
     # Determine the starting state
     # Modified to be rand instead of randn
     # Can be modified to take in the distribution of initial points
-    POI = user_data
+    # POI = user_data
     #Take mean of observed points and add noise
-    avg_b = global_phi[1]+rand(rng)/10
-    avg_r = global_phi[2]+rand(rng)/10
-    avg_n = global_phi[3]+rand(rng)/10
+    # avg_b = global_phi[1]+rand(rng)/10
+    # avg_r = global_phi[2]+rand(rng)/10
+    # avg_n = global_phi[3]+rand(rng)/10
+    avg_b = global_phi[1]
+    avg_r = global_phi[2]
+    avg_n = global_phi[3]
     phi = [avg_b, avg_r, avg_n]
-    phi = phi/norm(phi) # Normalize
+    # phi = phi/norm(phi) # Normalize
    
     init_cov = global_cov
     return State(phi,init_cov)
@@ -83,7 +88,7 @@ end
 
 function KalmanUpdate(b,o)
     #Assume that all observations update all classes
-    o_var = 0.05
+    o_var = 0.1
     cov_o = [o_var^2 0 0; 0 o_var^2 0; 0 0 o_var^2]
 
     #Time Update
@@ -160,8 +165,8 @@ m = QuickPOMDP(
             # operator likes s.phi
             # points already accepted should get denied
             sim = similarity(s.phi, beta_values[parse(Int64,a)])
-            #sim = sim*0.5
-            #sim = sim/norm(sim)
+            sim = sim*0.5
+            # sim = sim/norm(sim)
 
             p = [sim, 1-sim]
             return SparseCat(["accept", "deny"], p)
@@ -198,7 +203,7 @@ planner = solve(solver, pomdp)
 
 
 function _run()
-    suggestions_allowed = 5
+    suggestions_allowed = 3
     accepted_points = []
     user_points = []
     denied_points = []
@@ -216,15 +221,15 @@ function _run()
         planner = solve(solver, pomdp)
         println("----STEP----")
         for (s, a, o, ai) in stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3)
-            println(s.phi)
+            # println(s.phi)
             println("State was $s,")
             println("action $a was taken,")
             println("and observation $o was received.\n")
         
             # remove o if o is a point
             # remove a if o is accept
-            println(observations_list)
-            println(actions_list)
+            # println(observations_list)
+            # println(actions_list)
             if o == "accept"
                 #remove a from actions & observations
                 deleteat!(actions_list, findall(x->x==a, actions_list))
@@ -255,14 +260,14 @@ function _run()
                 #Update coveriance to increase uncertainty
                 # new_cov= global_cov*1.2
                 # new_cov = global_cov/similarity(a,global_phi)
-                inv_beta = ones(3) - beta_values[parse(Int64,a)]
-                new_state = KalmanUpdate(s,inv_beta)
-                global_phi[1] = new_state.phi[1]
-                global_phi[2] = new_state.phi[2]
-                global_phi[3] = new_state.phi[3]
-                global_cov[1:3] = new_state.cov[1:3]
-                global_cov[4:6] = new_state.cov[4:6]
-                global_cov[7:9] = new_state.cov[7:9]
+                # inv_beta = ones(3) - beta_values[parse(Int64,a)]
+                # new_state = KalmanUpdate(s,inv_beta)
+                # global_phi[1] = new_state.phi[1]
+                # global_phi[2] = new_state.phi[2]
+                # global_phi[3] = new_state.phi[3]
+                # global_cov[1:3] = new_state.cov[1:3]
+                # global_cov[4:6] = new_state.cov[4:6]
+                # global_cov[7:9] = new_state.cov[7:9]
                 # println(global_cov)
                 # Save off the point
                 push!(denied_points, a)
@@ -291,15 +296,21 @@ function _run()
                 break
             end
         end
+        # u_x,u_y = extract_xy(user_points,points_data)
+        # a_x,a_y = extract_xy(accepted_points,points_data)
+        # d_x,d_y = extract_xy(denied_points,points_data)
+        # i_x = [user_data[i][1] for i in 1:length(user_data)]
+        # i_y = [user_data[i][2] for i in 1:length(user_data)]
+        # plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/test.png")
     end
     return user_points, accepted_points, denied_points
 end
 
 user_points, accepted_points, denied_points = _run()
 
-println(user_points)
-println(accepted_points)
-println(denied_points)
+# println(user_points)
+# println(accepted_points)
+# println(denied_points)
 
 u_x,u_y = extract_xy(user_points,points_data)
 a_x,a_y = extract_xy(accepted_points,points_data)
@@ -307,8 +318,8 @@ d_x,d_y = extract_xy(denied_points,points_data)
 i_x = [user_data[i][1] for i in 1:length(user_data)]
 i_y = [user_data[i][2] for i in 1:length(user_data)]
 
-println(a_x)
-println(a_y)
+# println(a_x)
+# println(a_y)
 
 plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/test.png")
 # ## Display Monte Carlo tree for first decision
