@@ -12,6 +12,7 @@ using SARSOP: SARSOPSolver
 using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
 using LinearAlgebra
 using Distances
+using Statistics
 
 include("data_read.jl")
 include("plot_image.jl")
@@ -24,13 +25,15 @@ user_building = read_data("data/user_building.csv")
 user_road = read_data("data/user_road.csv")
 #test_points = read_data("data/user_test.csv")
 user_road_edges = read_data("data/user_roadedges.csv")
+user_road_intersection= read_data("data/user_roadintersection.csv")
 user_corners = read_data("data/user_corners.csv")
 user_other = read_data("data/user_other.csv")
 
 # Available points
 points_data = random_data_300 #* (100/30)
 # Points operator has chosen
-user_data = user_backdoor
+user_data = user_corners
+filename = "data/out_images/corners3.png"
 
 
 #Create beta Values
@@ -50,7 +53,7 @@ end
 function create_state()
     POI = user_data
     #Take mean of observed points and add noise
-    avg_b = mean([POI[a][4] for a in 1:length(POI)])
+    avg_b = mean([POI[a][4] for a in 1:length(POI)])*2
     avg_r = mean([POI[a][5] for a in 1:length(POI)])
     avg_n = mean([POI[a][6] for a in 1:length(POI)])
     cov_b = std([POI[a][4] for a in 1:length(POI)])
@@ -175,7 +178,7 @@ m = QuickPOMDP(
             # operator likes s.phi
             # points already accepted should get denied
             sim = similarity(s.phi, beta_values[parse(Int64,a)])
-            sim = sim
+            sim = sim*0.8
             # sim = sim/norm(sim)
 
             p = [sim, 1-sim]
@@ -331,7 +334,8 @@ i_y = [user_data[i][2] for i in 1:length(user_data)]
 # println(a_x)
 # println(a_y)
 
-plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/test.png")
+# plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/out_images/user_backdoor2.png")
+plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
 # ## Display Monte Carlo tree for first decision
 #history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
 #a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
