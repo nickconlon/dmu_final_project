@@ -14,9 +14,11 @@ using LinearAlgebra
 using Distances
 using Statistics
 
+#Include other functions
 include("data_read.jl")
 include("plot_image.jl")
 
+#Load point data
 random_data = read_data("data/random_data.csv")
 random_data_300 = read_data("data/random_data_300.csv")
 user_frontdoor = read_data("data/user_frontdoor.csv")
@@ -31,14 +33,15 @@ user_other = read_data("data/user_other.csv")
 
 # Available points
 points_data = random_data_300 #* (100/30)
-# Points operator has chosen
+# Points operator has chosen: 
+### ---  MODIFY TEST CASE HERE  --- ###
 user_data = user_corners
 filename = "data/out_images/corners3.png"
-
 
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
 
+# Function returns the feature values for a given point
 function beta(s, a)    
     # zero rewards for waiting
     if a == "wait"
@@ -50,7 +53,10 @@ function beta(s, a)
      end
 end
 
+
 function create_state()
+    # This function creates an initial Gaussian state distribution. The mean is initialized as the mean of the user
+    # selected points and the covariance is the variance of the user points
     POI = user_data
     #Take mean of observed points and add noise
     avg_b = mean([POI[a][4] for a in 1:length(POI)])*2
@@ -64,18 +70,14 @@ function create_state()
     return vec,cov_b, cov_r,cov_n
 end
 
+# Initialize state
 global_phi,cov_b,cov_r,cov_n = create_state()
 global_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
+T = 10  # Steps before final guess is made
 
 function sample_initial_state(rng)
-    # Determine the starting state
-    # Modified to be rand instead of randn
-    # Can be modified to take in the distribution of initial points
-    # POI = user_data
-    #Take mean of observed points and add noise
-    # avg_b = global_phi[1]+rand(rng)/10
-    # avg_r = global_phi[2]+rand(rng)/10
-    # avg_n = global_phi[3]+rand(rng)/10
+    # Determine the starting state. Calls the global state variable and puts it in a Vector
+    # Can be modified to add noise
     avg_b = global_phi[1]
     avg_r = global_phi[2]
     avg_n = global_phi[3]
@@ -83,15 +85,11 @@ function sample_initial_state(rng)
     # phi = phi/norm(phi) # Normalize
    
     init_cov = global_cov
-    return State(phi,init_cov)
-end
-
-struct State
-    phi::Vector{Float64}
-    cov::Array{Float64,2}
+    return State(phi,init_cov,0)
 end
 
 function KalmanUpdate(b,o)
+    # Basic Kalman update with no transition dynamics
     #Assume that all observations update all classes
     o_var = 0.15
     cov_o = [o_var^2 0 0; 0 o_var^2 0; 0 0 o_var^2]
@@ -105,10 +103,11 @@ function KalmanUpdate(b,o)
     mu_b = mu_p + K*(o-mu_p)
     cov_b = (I-K)*cov_p
 
-    return State([mu_b[1],mu_b[2],mu_b[3]],cov_b)
+    return State([mu_b[1],mu_b[2],mu_b[3]],cov_b,b.step)
 end
 
 function make_observations()
+    # Creates a list of potential observations in an array of strings
     total_act = length(points_data)
     a = Array{String}(undef, total_act+3)
     for i in 1:total_act
@@ -121,6 +120,7 @@ function make_observations()
 end
 
 function make_actions()
+    # Creates a list of potential actions in an array of strings
     total_act = length(points_data)
     a = Array{String}(undef, total_act+1)
     for i in 1:total_act
@@ -132,7 +132,14 @@ function make_actions()
 end
 
 function similarity(x, y)
+    # Similarity metric calculator
     return 1-cosine_dist(x, y)
+end
+
+struct State
+    phi::Vector{Float64}
+    cov::Array{Float64,2}
+    step::Int64
 end
 
 actions_list = make_actions()
@@ -141,11 +148,21 @@ observations_list = make_observations()
 
 m = QuickPOMDP(
     actions = actions_list,
+    # Attempt at creating dynamic action space. Doesn't work in current version
+    # function()
+    #     if s.step<T
+    #         return actions_list
+    #     else
+    #         return make_action()  # Choose the single best point that most closely approximates user's distribution
+    #     end
+    # end,
+
     observations = observations_list,
     initialstate = ImplicitDistribution(sample_initial_state), # hidden state distribution
     discount = 0.95,
 
     transition = function (s, a)
+        s.step += 1  # Increment step counter
         return Deterministic(s) # The state never changes
     end,
 
@@ -188,16 +205,20 @@ m = QuickPOMDP(
 
     reward = function (s, a)
         r = 0.0
-        if a == "wait"
-            r = 0.5
+        if s.step < T
+            if a == "wait"
+                r = 0.0  #Small negative for suggesting?
+            else 
+                r = -1.0
+            end            
         else
-            # if a was already accepted r = -5
             vec = beta_values[parse(Int64,a)] 
             r = similarity(s.phi, vec)
         end
         return r
-    end
-    #Note: No terminal state
+    end,
+
+    isterminal = s->s.step == T+1,
 )
 
 pomdp =  m  # Define POMDP
@@ -205,7 +226,7 @@ up = BootstrapFilter(pomdp, 1000)  # Unweighted particle filter
 solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true)
 planner = solve(solver, pomdp)
 
-#Step through simulates process
+#Step through simulated process
 #actions_test
 #println(observations(pomdp))
 #deleteat!(actions_list, findall(x->x=="3", actions_list))
@@ -216,6 +237,7 @@ planner = solve(solver, pomdp)
 
 
 function _run()
+    # Function runs through total interaction. 
     suggestions_allowed = 4
     accepted_points = []
     user_points = []
@@ -321,21 +343,14 @@ end
 
 user_points, accepted_points, denied_points = _run()
 
-# println(user_points)
-# println(accepted_points)
-# println(denied_points)
-
 u_x,u_y = extract_xy(user_points,points_data)
 a_x,a_y = extract_xy(accepted_points,points_data)
 d_x,d_y = extract_xy(denied_points,points_data)
 i_x = [user_data[i][1] for i in 1:length(user_data)]
 i_y = [user_data[i][2] for i in 1:length(user_data)]
 
-# println(a_x)
-# println(a_y)
-
-# plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], "data/out_images/user_backdoor2.png")
 plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+
 # ## Display Monte Carlo tree for first decision
 #history = collect(stepthrough(pomdp, planner, up, "s,a,o,action_info", max_steps=3))
 #a, info = action_info(planner, initialstate(pomdp), tree_in_info=true)
