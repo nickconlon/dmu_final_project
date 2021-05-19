@@ -138,7 +138,7 @@ end
 
 struct State
     phi::Vector{Float64}
-    cov::Array{Float64,2}
+    cov::Array{Float64,2}    
     step::Int64
 end
 

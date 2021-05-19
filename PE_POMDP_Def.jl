@@ -67,6 +67,11 @@ function make_actions()
     # deleteat!(a, findall(x->x=="1", a))
 end
 
+function similarity(x, y)
+    # Similarity metric calculator
+    return 1-cosine_dist(x, y)
+end
+
 function sample_initial_state(m)
     # Determine the starting state. Calls the global state variable and puts it in a Vector
     # Can be modified to add noise
@@ -83,33 +88,37 @@ function sample_initial_state(m)
     return State(phi,init_cov,[],0)
 end
 
-mutable struct PE_POMDP <: POMDP{SVector{3,Float64},Array{Float64,2},Int64}
+#--- POMDP Definition ---#
+mutable struct State
+    phi::Vector{Float64}
+    cov::Array{Float64,2}    
+    acts::Array{String,1}
+    step::Int64
+end
+
+struct PE_POMDP <: POMDP{State,String,String}
     user_points::Array{Any,1}
     user_accuracy::Float64
     user_availability::Float64
     discount_factor::Float64
-end
-
-#--- POMDP Definition ---#
-struct State
-    phi::Vector{Float64}
-    cov::Array{Float64,2}    
-    acts::Any
-    step::Int64
+    guess_steps::Int64
 end
 
 function POMDPs.initialstate(m::PE_POMDP)
-    POI = m.user_points  
-    avg_b = mean([POI[a][4] for a in 1:length(POI)])
-    avg_r = mean([POI[a][5] for a in 1:length(POI)])
-    avg_n = mean([POI[a][6] for a in 1:length(POI)])
-    cov_b = std([POI[a][4] for a in 1:length(POI)])
-    cov_r = std([POI[a][5] for a in 1:length(POI)])
-    cov_n = std([POI[a][6] for a in 1:length(POI)])
-    phi = [avg_b,avg_r,avg_n] 
-    phi = phi/norm(phi)  # Normalize
-    init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
-    init_state = State(phi,init_cov,[],0)
+    function init_state(rng)
+        POI = m.user_points  
+        avg_b = mean([POI[a][4] for a in 1:length(POI)])
+        avg_r = mean([POI[a][5] for a in 1:length(POI)])
+        avg_n = mean([POI[a][6] for a in 1:length(POI)])
+        cov_b = std([POI[a][4] for a in 1:length(POI)])
+        cov_r = std([POI[a][5] for a in 1:length(POI)])
+        cov_n = std([POI[a][6] for a in 1:length(POI)])
+        phi = [avg_b,avg_r,avg_n] 
+        phi = phi/norm(phi)  # Normalize
+        init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
+        new_state = State(phi,init_cov,[],0)
+        return new_state
+    end
     return ImplicitDistribution(init_state)
 end
 
@@ -118,12 +127,13 @@ POMDPs.discount(pomdp::PE_POMDP) = pomdp.discount_factor
 function POMDPs.transition(::PE_POMDP,s,a)
     s.step += 1  # Increment step counter
     s.acts = push!(s.acts,a)
+    println(a)
     return Deterministic(s) # The state never changes
 end
 
 function POMDPs.reward(pomdp::PE_POMDP,s,a)
     r = 0.0
-    if s.step < T
+    if s.step <= pomdp.guess_steps+1
         if a == "wait"
             r = 0.0  #Small negative for suggesting?
         else 
@@ -146,11 +156,11 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim_metric(p1, s.phi), sim_metric(p2, s.phi), ...)
         p_a = []
         acts = []
-        for (i, act) in enumerate(actions(m,b))  # How does this work?
+        for (i, act) in enumerate(actions(m,s))  # How does this work?
             if act != "wait"
                 b = beta_values[parse(Int64,act)]#(x,y,z)
-                out = create_state()
-                sim_metric = similarity(out[1], b)
+                out = sample_initial_state(m)
+                sim_metric = similarity(out.phi, b)
                 if sim_metric < 0.5
                     sim_metric = 0.0001
                 else
@@ -174,7 +184,7 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         av = m.user_availability
         # sim_metric = sim_metric/norm(sim_metric)
 
-        p = [av*(acc*sim + (1-acc)*(1-sim)),av*(acc*(1-sim)*(1-acc)*sim)]
+        p = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)*(1-acc)*sim_metric)]
         return SparseCat(["accept", "deny"], p)
     end
 
@@ -184,32 +194,56 @@ end
 
 function POMDPs.actions(m::PE_POMDP,b)
     # Creates a list of potential actions in an array of strings
-    # states = b.hist
-    println(b)
-    total_act = length(points_data)
-    acts = Array{String}(undef, total_act+1)
-    prev_a = [h[1] for h in s.acts]  #s.acts is a tuple with (action,observation)
-    for a in 1:total_act
-        if ~any(i -> string(i)==i,prev_a) 
+    if typeof(b) == LeafNodeBelief{Tuple{NamedTuple{(:a, :o),Tuple{String,String}}},State}
+        prev_a = b.sp.acts
+        step = b.sp.step
+    elseif typeof(b) == State
+        prev_a = b.acts
+        step = b.step
+    else
+        prev_a = b.particles[1].acts
+        step = b.particles[1].step
+    end
+    if step <= m.guess_steps
+        total_act = length(points_data)-length(prev_a)
+        acts = Array{String}(undef, total_act+1)
+        # prev_a = [h[1] for h in acts]  #acts is a list of actions
+        # println(acts)
+        # Add actions to list if they have not been taken
+        for a in 1:total_act
+            if isempty(acts) 
+                acts[a] = string(a)
+            else ~any(i -> string(i)==i,prev_a) 
+                acts[a] = string(a)
+            end
+        end
+        acts[end] = "wait"
+    else  # Currently guess best point on the list. Need to have it guess on final image.
+        total_act = length(points_data)-length(prev_a)
+        acts = Array{String}(undef, total_act)
+        # prev_a = [h[1] for h in acts]  #acts is a list of actions
+        # println(acts)
+        # Add actions to list if they have not been taken
+        for a in 1:total_act
             acts[a] = string(a)
         end
     end
-    acts[end] = "wait"
+    # print(acts)
     return acts
 end
 
-function POMDPs.isterminal(::PE_POMDP,s) 
-    if s.step == T+1
+function POMDPs.isterminal(m::PE_POMDP,s) 
+    if s.step == m.guess_steps+2
         return true
     else
         return false
     end
 end
 
-PE_fun =  PE_POMDP(user_road,0.9,0.8,0.99)  # Define POMDP
+PE_fun =  PE_POMDP(user_road,0.9,0.8,0.99,5)  # Define POMDP
 up = BootstrapFilter(PE_fun, 1000)  # Unweighted particle filter
 solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true)
 planner = solve(solver, PE_fun)
 history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=3))
-a, info = action_info(planner, initialstate(PE_fun), tree_in_info=true)
+a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
 inchrome(D3Tree(info[:tree], init_expand=3))
