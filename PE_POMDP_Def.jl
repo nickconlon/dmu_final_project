@@ -14,6 +14,7 @@ using LinearAlgebra
 using Distances
 using Statistics
 using StaticArrays
+using POMDPPolicies
 
 #Include other functions
 include("data_read.jl")
@@ -26,17 +27,17 @@ user_frontdoor = read_data("data/user_frontdoor.csv")
 user_backdoor = read_data("data/user_backdoor.csv")
 user_building = read_data("data/user_building.csv")
 user_road = read_data("data/user_road.csv")
-#test_points = read_data("data/user_test.csv")
+test_points = read_data("data/user_test.csv")
 user_road_edges = read_data("data/user_roadedges.csv")
 user_road_intersection= read_data("data/user_roadintersection.csv")
 user_corners = read_data("data/user_corners.csv")
 user_other = read_data("data/user_other.csv")
 
 # Available points
-points_data = random_data_300 #* (100/30)
+points_data = random_data #* (100/30)
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_corners
+user_data = test_points
 filename = "data/out_images/corners3.png"
 
 #Create beta Values
@@ -85,13 +86,13 @@ function sample_initial_state(m)
     phi = [avg_b,avg_r,avg_n] 
     phi = phi/norm(phi)  # Normalize
     init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
-    return State(phi,init_cov,[],0)
+    return State(phi,[],0)
 end
 
 #--- POMDP Definition ---#
-mutable struct State
+struct State
     phi::Vector{Float64}
-    cov::Array{Float64,2}    
+    # cov::Array{Float64,2}    
     acts::Array{String,1}
     step::Int64
 end
@@ -116,19 +117,22 @@ function POMDPs.initialstate(m::PE_POMDP)
         phi = [avg_b,avg_r,avg_n] 
         phi = phi/norm(phi)  # Normalize
         init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
-        new_state = State(phi,init_cov,[],0)
+        new_state = State(phi,[],0)
         return new_state
     end
-    return ImplicitDistribution(init_state)
+    r = ImplicitDistribution(init_state)
+    return r
 end
 
 POMDPs.discount(pomdp::PE_POMDP) = pomdp.discount_factor
 
 function POMDPs.transition(::PE_POMDP,s,a)
-    s.step += 1  # Increment step counter
-    s.acts = push!(s.acts,a)
-    println(a)
-    return Deterministic(s) # The state never changes
+    new_step =s.step+ 1  # Increment step counter
+    new_acts = push!(s.acts,a)
+    # println(a)
+    #Make a new state
+    new_state = State(s.phi,new_acts,new_step)
+    return Deterministic(new_state) # The state never changes
 end
 
 function POMDPs.reward(pomdp::PE_POMDP,s,a)
@@ -200,9 +204,18 @@ function POMDPs.actions(m::PE_POMDP,b)
     elseif typeof(b) == State
         prev_a = b.acts
         step = b.step
-    else
+    elseif typeof(b) == ParticleCollection{State} # For particle distribution
+        # print(typeof(b))
         prev_a = b.particles[1].acts
         step = b.particles[1].step
+    # elseif typeof(b) == ImplicitDistribution{var"#init_state#21"{PE_POMDP},Tuple{}}
+    #     prev_a = []
+    #     step = 0
+    else
+    # elseif typeof(b) == ImplicitDistribution{var"#init_state#54"{PE_POMDP},Tuple{}}
+        println("Else case triggered")
+        prev_a = []
+        step = 0
     end
     if step <= m.guess_steps
         total_act = length(points_data)-length(prev_a)
@@ -233,16 +246,17 @@ function POMDPs.actions(m::PE_POMDP,b)
 end
 
 function POMDPs.isterminal(m::PE_POMDP,s) 
-    if s.step == m.guess_steps+2
+    if s.step == m.guess_steps+1
         return true
     else
         return false
     end
 end
 
-PE_fun =  PE_POMDP(user_road,0.9,0.8,0.99,5)  # Define POMDP
+PE_fun =  PE_POMDP(user_road,0.9,0.8,0.99,3)  # Define POMDP
 up = BootstrapFilter(PE_fun, 1000)  # Unweighted particle filter
-solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true)
+randomMDP = FORollout(RandomSolver())
+solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 planner = solve(solver, PE_fun)
 history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=3))
 a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
