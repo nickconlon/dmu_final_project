@@ -34,11 +34,11 @@ user_corners = read_data("data/user_corners.csv")
 user_other = read_data("data/user_other.csv")
 
 # Available points
-points_data = random_data #* (100/30)
+points_data = random_data_300 #* (100/30)
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = test_points
-filename = "data/out_images/corners3.png"
+user_data = user_road
+filename = "data/out_images/testimage.png"
 
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
@@ -139,7 +139,7 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
     r = 0.0
     if s.step <= pomdp.guess_steps+1
         if a == "wait"
-            r = 0.0  #Small negative for suggesting?
+            r = -1.2  #Small negative for suggesting?
         else 
             r = -1.0
         end            
@@ -187,8 +187,10 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         acc = m.user_accuracy
         av = m.user_availability
         # sim_metric = sim_metric/norm(sim_metric)
-
-        p = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)*(1-acc)*sim_metric)]
+        #p(accept) = p(accurate)p(accept|accurate) + p(not accurate)p(accept|not accurate)
+        #p(deny) = p(accurate)p(deny|accurate) + p(not accurate)p(deny|not accurate)
+        p = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)+(1-acc)*sim_metric)]
+        # println(p)
         return SparseCat(["accept", "deny"], p)
     end
 
@@ -213,7 +215,7 @@ function POMDPs.actions(m::PE_POMDP,b)
     #     step = 0
     else
     # elseif typeof(b) == ImplicitDistribution{var"#init_state#54"{PE_POMDP},Tuple{}}
-        println("Else case triggered")
+        # println("Else case triggered")
         prev_a = []
         step = 0
     end
@@ -253,11 +255,37 @@ function POMDPs.isterminal(m::PE_POMDP,s)
     end
 end
 
-PE_fun =  PE_POMDP(user_road,0.9,0.8,0.99,3)  # Define POMDP
+guess_steps = 4
+
+PE_fun =  PE_POMDP(user_road,0.9,1,0.99,guess_steps)  # Define POMDP
 up = BootstrapFilter(PE_fun, 1000)  # Unweighted particle filter
 randomMDP = FORollout(RandomSolver())
 solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 planner = solve(solver, PE_fun)
-history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=3))
+history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
 a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-inchrome(D3Tree(info[:tree], init_expand=3))
+# inchrome(D3Tree(info[:tree], init_expand=3))
+
+# Show sequence
+accepted_points = []
+user_points = []
+denied_points = []
+for p in 1:length(history)
+    act = history[p].a
+    obs = history[p].o
+    println(act,obs)
+    if obs == "accept"
+        push!(accepted_points,act)
+    elseif obs == "deny"
+        push!(denied_points,act)
+    else
+        push!(user_points,obs)
+    end
+end
+u_x,u_y = extract_xy(user_points,points_data)
+a_x,a_y = extract_xy(accepted_points,points_data)
+d_x,d_y = extract_xy(denied_points,points_data)
+i_x = [user_data[i][1] for i in 1:length(user_data)]
+i_y = [user_data[i][2] for i in 1:length(user_data)]
+
+plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
