@@ -1,3 +1,5 @@
+using StaticArrays: beta
+using Base: Float64
 using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPModels
 using BasicPOMCP
@@ -19,6 +21,7 @@ using POMDPPolicies
 #Include other functions
 include("data_read.jl")
 include("plot_image.jl")
+include("user_model.jl")
 
 #Load point data
 random_data = read_data("data/random_data.csv")
@@ -42,6 +45,10 @@ filename = "data/out_images/testimage.png"
 
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
+final_beta_values = []#TODO
+
+#Choose a user model
+user_model = user_expert
 
 function make_observations()
     # Creates a list of potential observations in an array of strings
@@ -56,9 +63,9 @@ function make_observations()
     return a
 end
 
-function make_actions()
+function make_actions() # TODO move into actions function for final map guess
     # Creates a list of potential actions in an array of strings
-    total_act = length(points_data)
+    total_act = length(points_data) # TODO points_data -> final map guess
     a = Array{String}(undef, total_act+1)
     for i in 1:total_act
         a[i] = string(i)
@@ -99,8 +106,7 @@ end
 
 struct PE_POMDP <: POMDP{State,String,String}
     user_points::Array{Any,1}
-    user_accuracy::Float64
-    user_availability::Float64
+    user::User_Model
     discount_factor::Float64
     guess_steps::Int64
 end
@@ -144,7 +150,7 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
             r = -1.0
         end            
     else
-        vec = beta_values[parse(Int64,a)] 
+        vec = beta_values[parse(Int64,a)] # TODO final_beta_values
         r = similarity(s.phi, vec)
     end
     return r
@@ -182,10 +188,11 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         # agent is suggesting 'a'
         # operator likes s.phi
         # points already accepted should get denied
+        # TODO recompute beta values for new map if this is the final guess step
         sim_metric = similarity(s.phi, beta_values[parse(Int64,a)])
         sim_metric = sim_metric*0.8
-        acc = m.user_accuracy
-        av = m.user_availability
+        acc = m.user.accuracy
+        av = m.user.availability
         # sim_metric = sim_metric/norm(sim_metric)
         #p(accept) = p(accurate)p(accept|accurate) + p(not accurate)p(accept|not accurate)
         #p(deny) = p(accurate)p(deny|accurate) + p(not accurate)p(deny|not accurate)
@@ -225,10 +232,10 @@ function POMDPs.actions(m::PE_POMDP,b)
         # prev_a = [h[1] for h in acts]  #acts is a list of actions
         # println(acts)
         # Add actions to list if they have not been taken
-        for a in 1:total_act
+        for a in 1:total_act # 1->len(points_data)
             if isempty(acts) 
                 acts[a] = string(a)
-            else ~any(i -> string(i)==i,prev_a) 
+            else ~any(i -> string(i)==i,prev_a)  # TODO does this make sense.. if a not in prev_a
                 acts[a] = string(a)
             end
         end
@@ -239,6 +246,7 @@ function POMDPs.actions(m::PE_POMDP,b)
         # prev_a = [h[1] for h in acts]  #acts is a list of actions
         # println(acts)
         # Add actions to list if they have not been taken
+        # TODO recompute actions for new map
         for a in 1:total_act
             acts[a] = string(a)
         end
@@ -257,7 +265,7 @@ end
 
 guess_steps = 4
 
-PE_fun =  PE_POMDP(user_road,0.9,1,0.99,guess_steps)  # Define POMDP
+PE_fun =  PE_POMDP(user_road,user_model,0.99,guess_steps)  # Define POMDP
 up = BootstrapFilter(PE_fun, 1000)  # Unweighted particle filter
 randomMDP = FORollout(RandomSolver())
 solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
