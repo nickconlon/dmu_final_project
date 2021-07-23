@@ -24,24 +24,24 @@ include("plot_image.jl")
 include("user_model.jl")
 
 #Load point data
-random_data = read_data("data/random_data.csv")
-random_data_300 = read_data("data/random_data_300.csv")
-user_frontdoor = read_data("data/user_frontdoor.csv")
-user_backdoor = read_data("data/user_backdoor.csv")
-user_building = read_data("data/user_building.csv")
-user_road = read_data("data/user_road.csv")
-test_points = read_data("data/user_test.csv")
-user_road_edges = read_data("data/user_roadedges.csv")
-user_road_intersection= read_data("data/user_roadintersection.csv")
-user_corners = read_data("data/user_corners.csv")
-user_other = read_data("data/user_other.csv")
+random_data = read_data("./data/random_data.csv")
+random_data_300 = read_data("./data/random_data_300.csv")
+user_frontdoor = read_data("./data/user_frontdoor.csv")
+user_backdoor = read_data("./data/user_backdoor.csv")
+user_building = read_data("./data/user_building.csv")
+user_road = read_data("./data/user_road.csv")
+test_points = read_data("./data/user_test.csv")
+user_road_edges = read_data("./data/user_roadedges.csv")
+user_road_intersection= read_data("./data/user_roadintersection.csv")
+user_corners = read_data("./data/user_corners.csv")
+user_other = read_data("./data/user_other.csv")
 
 # Available points
 points_data = random_data_300 #* (100/30)
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
 user_data = user_road
-filename = "data/out_images/testimage.png"
+filename = "./data/out_images/testimage.png"
 
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
