@@ -236,13 +236,20 @@ function POMDPs.actions(m::PE_POMDP,b)
     end
     if step <= m.guess_steps
         prev_a_nums = 0 
+        taken_acts = []
         #Count number of acts that are not "wait"
         for pa in 1:length(prev_a)
             if prev_a[pa] != "wait"
-                prev_a_nums += 1
+                #Check if any actions are taken multiple times. Occurs due to random rollout
+                if ~any(i -> prev_a[pa] == i,taken_acts)
+                    prev_a_nums += 1
+                    push!(taken_acts,prev_a[pa])
+                else
+                    println("Double  action found")
+                end
             end
         end
-        total_act = length(points_data)-prev_a_nums
+        total_act = length(points_data)-length(taken_acts)
         acts = Array{String}(undef, total_act+1)
 
         # Add actions to list if they have not been taken
@@ -252,7 +259,8 @@ function POMDPs.actions(m::PE_POMDP,b)
             if ~any(i -> string(a) == i,prev_a) #Iterate through prev_a and check if a is in old steps
                 acts[a-min_count] = string(a)
             else # action a has been taken
-                min_count += sum(i-> string(a) == i,prev_a) #Counter to keep index properly matched.
+                #min_count += sum(i-> string(a) == i,prev_a) #Counter to keep index properly matched.
+                min_count += 1
                 #Note: Multiple actions can be taken during tree search due to random rollout not updating the belief
             end
         end
