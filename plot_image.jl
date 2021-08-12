@@ -1,7 +1,6 @@
 using Images
 using Plots
-
-FILEPATH = "images/Image1_raw.png"
+FILEPATH = "./images/Image1_raw.png"
 USER_INIT = "yellow"
 USER_COLOR = "blue"
 SUGGEST_COLOR = "green"

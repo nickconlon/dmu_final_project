@@ -24,28 +24,29 @@ include("plot_image.jl")
 include("user_model.jl")
 
 #Load point data
-random_data = read_data("data/random_data.csv")
-random_data_300 = read_data("data/random_data_300.csv")
-user_frontdoor = read_data("data/user_frontdoor.csv")
-user_backdoor = read_data("data/user_backdoor.csv")
-user_building = read_data("data/user_building.csv")
-user_road = read_data("data/user_road.csv")
-test_points = read_data("data/user_test.csv")
-user_road_edges = read_data("data/user_roadedges.csv")
-user_road_intersection= read_data("data/user_roadintersection.csv")
-user_corners = read_data("data/user_corners.csv")
-user_other = read_data("data/user_other.csv")
+random_data = read_data("./data/random_data.csv")
+random_data_300 = read_data("./data/random_data_300.csv")
+user_frontdoor = read_data("./data/user_frontdoor.csv")
+user_backdoor = read_data("./data/user_backdoor.csv")
+user_building = read_data("./data/user_building.csv")
+user_road = read_data("./data/user_road.csv")
+test_points = read_data("./data/user_test.csv")
+user_road_edges = read_data("./data/user_roadedges.csv")
+user_road_intersection= read_data("./data/user_roadintersection.csv")
+user_corners = read_data("./data/user_corners.csv")
+user_other = read_data("./data/user_other.csv")
 
 # Available points
 points_data = random_data_300 #* (100/30)
+final_points_data = random_data_300 # #TODO modify with actual set of points
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
 user_data = user_road
-filename = "data/out_images/testimage.png"
+filename = "./data/out_images/testimage.png"
 
 #Create beta Values
 beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
-final_beta_values = []#TODO
+final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]#TODO
 
 #Choose a user model
 user_model = user_expert
@@ -150,7 +151,7 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
             r = -1.0
         end            
     else
-        vec = beta_values[parse(Int64,a)] # TODO final_beta_values
+        vec = final_beta_values[parse(Int64,a)] # Calculate similarity with final_beta_values
         r = similarity(s.phi, vec)
     end
     return r
@@ -166,6 +167,7 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim_metric(p1, s.phi), sim_metric(p2, s.phi), ...)
         p_a = []
         acts = []
+        # Look through all actions and see which one the user is most likely to add
         for (i, act) in enumerate(actions(m,s))  # How does this work?
             if act != "wait"
                 b = beta_values[parse(Int64,act)]#(x,y,z)
@@ -188,17 +190,23 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         # agent is suggesting 'a'
         # operator likes s.phi
         # points already accepted should get denied
-        # TODO recompute beta values for new map if this is the final guess step
-        sim_metric = similarity(s.phi, beta_values[parse(Int64,a)])
-        sim_metric = sim_metric*0.8
+        # recompute beta values for new map if this is the final guess step
+        if s.step <= m.guess_steps
+            sim_metric = similarity(s.phi, beta_values[parse(Int64,a)])
+        else
+            sim_metric = similarity(s.phi, final_beta_values[parse(Int64,a)])
+        end
+        sim_metric = sim_metric*0.8 #Semi-arbitrary weighting
         acc = m.user.accuracy
         av = m.user.availability
         # sim_metric = sim_metric/norm(sim_metric)
+        
+        # Temporary stand-in for points that are estimated to be accepted
         #p(accept) = p(accurate)p(accept|accurate) + p(not accurate)p(accept|not accurate)
         #p(deny) = p(accurate)p(deny|accurate) + p(not accurate)p(deny|not accurate)
-        p = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)+(1-acc)*sim_metric)]
+        percentage = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)+(1-acc)*sim_metric)]
         # println(p)
-        return SparseCat(["accept", "deny"], p)
+        return SparseCat(["accept", "deny"], percentage)
     end
 
 end
@@ -227,24 +235,40 @@ function POMDPs.actions(m::PE_POMDP,b)
         step = 0
     end
     if step <= m.guess_steps
-        total_act = length(points_data)-length(prev_a)
+        prev_a_nums = 0 
+        taken_acts = []
+        #Count number of acts that are not "wait"
+        for pa in 1:length(prev_a)
+            if prev_a[pa] != "wait"
+                #Check if any actions are taken multiple times. Occurs due to random rollout
+                if ~any(i -> prev_a[pa] == i,taken_acts)
+                    prev_a_nums += 1
+                    push!(taken_acts,prev_a[pa])
+                else
+                    println("Double  action found")
+                end
+            end
+        end
+        total_act = length(points_data)-length(taken_acts)
         acts = Array{String}(undef, total_act+1)
-        # prev_a = [h[1] for h in acts]  #acts is a list of actions
-        # println(acts)
+
         # Add actions to list if they have not been taken
-        for a in 1:total_act # 1->len(points_data)
-            if isempty(acts) 
-                acts[a] = string(a)
-            else ~any(i -> string(i)==i,prev_a)  # TODO does this make sense.. if a not in prev_a
-                acts[a] = string(a)
+        min_count = 0
+        # println(prev_a)
+        for a in 1:length(points_data) # 1->len(points_data)
+            if ~any(i -> string(a) == i,prev_a) #Iterate through prev_a and check if a is in old steps
+                acts[a-min_count] = string(a)
+            else # action a has been taken
+                #min_count += sum(i-> string(a) == i,prev_a) #Counter to keep index properly matched.
+                min_count += 1
+                #Note: Multiple actions can be taken during tree search due to random rollout not updating the belief
             end
         end
         acts[end] = "wait"
     else  # Currently guess best point on the list. Need to have it guess on final image.
-        total_act = length(points_data)-length(prev_a)
+        total_act = length(final_points_data)
         acts = Array{String}(undef, total_act)
-        # prev_a = [h[1] for h in acts]  #acts is a list of actions
-        # println(acts)
+       
         # Add actions to list if they have not been taken
         # TODO recompute actions for new map
         for a in 1:total_act
@@ -266,9 +290,9 @@ end
 guess_steps = 4
 
 PE_fun =  PE_POMDP(user_road,user_model,0.99,guess_steps)  # Define POMDP
-up = BootstrapFilter(PE_fun, 1000)  # Unweighted particle filter
+up = BootstrapFilter(PE_fun, 100)  # Unweighted particle filter
 randomMDP = FORollout(RandomSolver())
-solver = POMCPSolver(tree_queries=1000, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
+solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 planner = solve(solver, PE_fun)
 history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
 a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
