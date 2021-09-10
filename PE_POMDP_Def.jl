@@ -7,7 +7,7 @@ using POMDPModels
 using POMDPModelTools
 using D3Trees
 using Random
-using ParticleFilters
+using ParticleFilters, Distributions
 using POMDPPolicies: FunctionPolicy, alphavectors
 using Plots
 using SARSOP: SARSOPSolver
@@ -18,42 +18,42 @@ using Statistics
 using StaticArrays
 using POMDPPolicies
 
-#Include other functions
-include("data_read.jl")
-include("plot_image.jl")
+# #Include other functions
+# include("data_read.jl")
+# include("plot_image.jl")
 include("user_model.jl")
 
-#Load point data
-random_data = read_data("./data/random_data.csv")
-random_data_300 = read_data("./data/random_data_300.csv")
-user_frontdoor = read_data("./data/user_frontdoor.csv")
-user_backdoor = read_data("./data/user_backdoor.csv")
-user_building = read_data("./data/user_building.csv")
-user_road = read_data("./data/user_road.csv")
-test_points = read_data("./data/user_test.csv")
-user_road_edges = read_data("./data/user_roadedges.csv")
-user_road_intersection= read_data("./data/user_roadintersection.csv")
-user_corners = read_data("./data/user_corners.csv")
-user_other = read_data("./data/user_other.csv")
+# #Load point data
+# random_data = read_data("./data/random_data.csv")
+# random_data_300 = read_data("./data/random_data_300.csv")
+# user_frontdoor = read_data("./data/user_frontdoor.csv")
+# user_backdoor = read_data("./data/user_backdoor.csv")
+# user_building = read_data("./data/user_building.csv")
+# user_road = read_data("./data/user_road.csv")
+# test_points = read_data("./data/user_test.csv")
+# user_road_edges = read_data("./data/user_roadedges.csv")
+# user_road_intersection= read_data("./data/user_roadintersection.csv")
+# user_corners = read_data("./data/user_corners.csv")
+# user_other = read_data("./data/user_other.csv")
 
-# Available points
-points_data = random_data_300 #* (100/30)
-final_points_data = random_data_300 # #TODO modify with actual set of points
-# Points operator has chosen: 
-### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_road
-filename = "./data/out_images/testimage.png"
+# # Available points
+# points_data = random_data_300 #* (100/30)
+# final_points_data = random_data_300 # #TODO modify with actual set of points
+# # Points operator has chosen: 
+# ### ---  MODIFY TEST CASE HERE  --- ###
+# user_data = user_road
+# filename = "./data/out_images/testimage.png"
 
-#Create beta Values
-beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
-final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]#TODO
+# #Create beta Values
+# beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
+# final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]#TODO
 
-#Choose a user model
-user_model = user_expert
+# #Choose a user model
+# user_model = user_expert
 
 function make_observations()
     # Creates a list of potential observations in an array of strings
-    total_act = length(points_data)
+    total_act = length(suggest_points)
     a = Array{String}(undef, total_act+3)
     for i in 1:total_act
         a[i] = string(i)
@@ -66,7 +66,7 @@ end
 
 function make_actions() # TODO move into actions function for final map guess
     # Creates a list of potential actions in an array of strings
-    total_act = length(points_data) # TODO points_data -> final map guess
+    total_act = length(best_points) # TODO points_data -> final map guess
     a = Array{String}(undef, total_act+1)
     for i in 1:total_act
         a[i] = string(i)
@@ -105,8 +105,11 @@ struct State
     step::Int64
 end
 
-struct PE_POMDP <: POMDP{State,String,String}
+struct PE_POMDP <: POMDP{State,String,String} 
     user_points::Array{Any,1}
+    suggest_points::Array{Any,1}
+    observe_points::Array{Any,1}
+    final_points::Array{Any,1}
     user::User_Model
     discount_factor::Float64
     guess_steps::Int64
@@ -146,12 +149,12 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
     r = 0.0
     if s.step <= pomdp.guess_steps+1
         if a == "wait"
-            r = -1.2  #Small negative for suggesting?
+            r = -2  #Small negative for suggesting?
         else 
             r = -1.0
         end            
     else
-        vec = final_beta_values[parse(Int64,a)] # Calculate similarity with final_beta_values
+        vec = final_points[parse(Int64,a)] # Calculate similarity with final_beta_values
         r = similarity(s.phi, vec)
     end
     return r
@@ -161,8 +164,12 @@ end
 
 POMDPs.observations(::PE_POMDP) = make_observations()  #How to tie in history?
 
-function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
+function POMDPs.observation(m::PE_POMDP,s,a,sp)
+    # if typeof(s) != State
+    #     s = State(s,[],1)
+    # end
     if a == "wait"
+    beta_values = m.observe_points
         # points already accepted should get zero probability mass
         # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim_metric(p1, s.phi), sim_metric(p2, s.phi), ...)
         p_a = []
@@ -172,12 +179,7 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
             if act != "wait"
                 b = beta_values[parse(Int64,act)]#(x,y,z)
                 out = sample_initial_state(m)
-                sim_metric = similarity(out.phi, b)
-                if sim_metric < 0.5
-                    sim_metric = 0.0001
-                else
-                    sim_metric = sim_metric*sim_metric
-                end
+                sim_metric = observation_similarity_wait(out.phi,b)
                 push!(p_a,sim_metric)
                 push!(acts, act)
             end
@@ -187,15 +189,13 @@ function POMDPs.observation(m::PE_POMDP,s::State,a,sp)
         return SparseCat(acts, p_a)
         # distribution over all operator add points
     else
+    beta_values = m.suggest_points
         # agent is suggesting 'a'
         # operator likes s.phi
         # points already accepted should get denied
-        # recompute beta values for new map if this is the final guess step
-        if s.step <= m.guess_steps
-            sim_metric = similarity(s.phi, beta_values[parse(Int64,a)])
-        else
-            sim_metric = similarity(s.phi, final_beta_values[parse(Int64,a)])
-        end
+        # recompute ParticleCollection
+        b = beta_values[parse(Int64,a)]#(x,y,z)
+        sim_metric = similarity(s.phi, b)
         sim_metric = sim_metric*0.8 #Semi-arbitrary weighting
         acc = m.user.accuracy
         av = m.user.availability
@@ -235,6 +235,7 @@ function POMDPs.actions(m::PE_POMDP,b)
         step = 0
     end
     if step <= m.guess_steps
+        points_data = m.suggest_points
         prev_a_nums = 0 
         taken_acts = []
         #Count number of acts that are not "wait"
@@ -255,7 +256,7 @@ function POMDPs.actions(m::PE_POMDP,b)
         # Add actions to list if they have not been taken
         min_count = 0
         # println(prev_a)
-        for a in 1:length(points_data) # 1->len(points_data)
+        for a in 1:length(points_data) # 1->len(suggest_points)
             if ~any(i -> string(a) == i,prev_a) #Iterate through prev_a and check if a is in old steps
                 acts[a-min_count] = string(a)
             else # action a has been taken
@@ -266,7 +267,8 @@ function POMDPs.actions(m::PE_POMDP,b)
         end
         acts[end] = "wait"
     else  # Currently guess best point on the list. Need to have it guess on final image.
-        total_act = length(final_points_data)
+        
+        total_act = length(m.final_points)
         acts = Array{String}(undef, total_act)
        
         # Add actions to list if they have not been taken
@@ -287,37 +289,77 @@ function POMDPs.isterminal(m::PE_POMDP,s)
     end
 end
 
-guess_steps = 4
-
-PE_fun =  PE_POMDP(user_road,user_model,0.99,guess_steps)  # Define POMDP
-up = BootstrapFilter(PE_fun, 100)  # Unweighted particle filter
-randomMDP = FORollout(RandomSolver())
-solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
-planner = solve(solver, PE_fun)
-history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
-a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-# inchrome(D3Tree(info[:tree], init_expand=3))
-
-# Show sequence
-accepted_points = []
-user_points = []
-denied_points = []
-for p in 1:length(history)
-    act = history[p].a
-    obs = history[p].o
-    println(act,obs)
-    if obs == "accept"
-        push!(accepted_points,act)
-    elseif obs == "deny"
-        push!(denied_points,act)
-    else
-        push!(user_points,obs)
+function find_similar_points(points,phi,n)
+    #Function takes in a phi value and finds the top n similar points
+    #Find top similar points
+    similar_points = Array{Vector{Any}}(undef,length(points))
+    for p in 1:length(points)
+        similar_points[p] = [similarity(phi,points[p]),p]
     end
-end
-u_x,u_y = extract_xy(user_points,points_data)
-a_x,a_y = extract_xy(accepted_points,points_data)
-d_x,d_y = extract_xy(denied_points,points_data)
-i_x = [user_data[i][1] for i in 1:length(user_data)]
-i_y = [user_data[i][2] for i in 1:length(user_data)]
 
-plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+    #Sort likeliest points
+    likely_points = sort!(similar_points,rev = true)
+    #Extract best points for input into solver
+    best_point_idx = [likely_points[ind][2] for ind in 1:n]
+    best_point_phi = [points[Int(i)] for i in best_point_idx]
+    return best_point_idx, best_point_phi
+end
+
+function observation_similarity_wait(state,point)
+    #This function is used to obtain a probability for an observation received at a particular point
+    #Used in the POMDP observation definition and particle filter update
+    sim_metric = similarity(state, point)
+    if sim_metric < 0.5
+        sim_metric = 0.0001
+    else
+        sim_metric = sim_metric*sim_metric
+    end
+    return sim_metric
+end
+
+function observation_suggest(m::PE_POMDP,s,obs,act)
+    #Function used to obtain a probability for an accept or deny observation
+    ar = observation(m,State(s,[],1),act,State(s,[],1))
+    #Parse the response array to output specific probability
+    if obs == "accept"
+        val = ar.probs[1]
+    else 
+        val = ar.probs[2]
+    end
+    return val
+end
+
+# guess_steps = 4
+
+# PE_fun =  PE_POMDP(user_road,user_model,0.99,guess_steps)  # Define POMDP
+# up = BootstrapFilter(PE_fun, 100)  # Unweighted particle filter
+# randomMDP = FORollout(RandomSolver())
+# solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
+# planner = solve(solver, PE_fun)
+# history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
+# a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
+# # inchrome(D3Tree(info[:tree], init_expand=3))
+
+# # Show sequence
+# accepted_points = []
+# user_points = []
+# denied_points = []
+# for p in 1:length(history)
+#     act = history[p].a
+#     obs = history[p].o
+#     println(act,obs)
+#     if obs == "accept"
+#         push!(accepted_points,act)
+#     elseif obs == "deny"
+#         push!(denied_points,act)
+#     else
+#         push!(user_points,obs)
+#     end
+# end
+# u_x,u_y = extract_xy(user_points,points_data)
+# a_x,a_y = extract_xy(accepted_points,points_data)
+# d_x,d_y = extract_xy(denied_points,points_data)
+# i_x = [user_data[i][1] for i in 1:length(user_data)]
+# i_y = [user_data[i][2] for i in 1:length(user_data)]
+
+# plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
