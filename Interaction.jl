@@ -80,7 +80,8 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
 
     #Initilize Belief with Particle Filter
     #Create Gaussian Distribution
-    p = 10 #Number of particles
+    p = 100 #Number of particles
+    p_sample = 10 #Number of actions to consider --> Size of action space
     initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
     initial_p_set = [rand(initial_belief) for a in 1:p]
     p_belief = InjectionParticleFilter(initial_p_set,Int(round(p*0.05)),initial_belief)
@@ -88,8 +89,9 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
     accepted_points = []
     user_points = []
     denied_points = []
+    suggested_points = []
 
-    best_points_idx,best_points_phi = find_similar_points(s_points,phi,10)
+    best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
     for step in 1:5
     # step = 1
         #Find the top 10 points for suggestion
@@ -108,45 +110,41 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
             new_user_point = sample_new_point(choice_beta_values,user_ideal,user_mode)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,new_user_point)
-            push!(user_points,new_user_point)
+            push!(user_points,new_user_point) #Record keeping
         else
+            #Find global point from suggested point
+            suggested_idx = Int(best_points_idx[parse(Int64,a)])
             #Randomly sample user's response based on user model
-            response = sample_user_response(s_points[parse(Int64,a)],user_ideal,user_mode)
+            response = sample_user_response(s_points[suggested_idx],user_ideal,user_mode)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,response)
+            #Record Keeping
             if response=="accept"
-                push!(accepted_points,a)
+                push!(accepted_points,string(suggested_idx))
             else
-                push!(denied_points,a)
+                push!(denied_points,string(suggested_idx))
             end
+            push!(suggested_points,string(suggested_idx))
         end
 
-        #Update particle distribution to account for new information
-        best_points = find_similar_points(s_points,phi,10)
-        ps = p_belief.states
-        # scatter(ps[1,:],ps[2,:],ps[3,:])
+        #Update set of points to iterate through
+        #Sample from Particle filter
+        particles = rand(p_belief.states,p_sample)
+        #Replace sampled points
+        for sample in 1:length(particles)
+            idx,phi = find_similar_points(s_points,particles[sample],1,suggested_points)
+            best_points_idx[sample] = idx[1]
+            best_points_phi[sample] = phi[1]
+        end
+        
     end
-    return user_points,accepted_points,denied_points
+    return p_belief,user_points,accepted_points,denied_points
 end
 
 
-user_points,accepted_points,denied_points = _run(user_road,beta_values,final_beta_values,choice_beta_values)
-# # Show sequence
-# accepted_points = []
-# user_points = []
-# denied_points = []
-# for p in 1:length(history)
-#     act = history[p].a
-#     obs = history[p].o
-#     println(act,obs)
-#     if obs == "accept"
-#         push!(accepted_points,act)
-#     elseif obs == "deny"
-#         push!(denied_points,act)
-#     else
-#         push!(user_points,obs)
-#     end
-# end
+belief,user_points,accepted_points,denied_points = _run(user_road,beta_values,final_beta_values,choice_beta_values)
+
+#Visualization and image plotting
 u_x,u_y = extract_xy(user_points,points_data)
 a_x,a_y = extract_xy(accepted_points,points_data)
 d_x,d_y = extract_xy(denied_points,points_data)

@@ -289,12 +289,18 @@ function POMDPs.isterminal(m::PE_POMDP,s)
     end
 end
 
-function find_similar_points(points,phi,n)
+function find_similar_points(points,phi,n,bad_points)
     #Function takes in a phi value and finds the top n similar points
     #Find top similar points
-    similar_points = Array{Vector{Any}}(undef,length(points))
+    similar_points = Array{Vector{Any}}(undef,length(points)-length(bad_points))
+    min_count = 0
     for p in 1:length(points)
-        similar_points[p] = [similarity(phi,points[p]),p]
+        #Remove any previously suggested points
+        if ~any(i -> string(p) == i,bad_points)
+            similar_points[p-min_count] = [similarity(phi,points[p]),p]
+        else
+            min_count += 1
+        end
     end
 
     #Sort likeliest points

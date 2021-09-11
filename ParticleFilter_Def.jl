@@ -19,7 +19,6 @@ function update_PF(b::InjectionParticleFilter,m::PE_POMDP,a,o)
     P = length(states)
     #Create array to feed into Categorical Framework
     acts = [string(i) for i in 1:P]
-    # println(weights)
     D = SetCategorical(acts,weights) #Create associated set of elements
     sampled_states = rand(D,P-P_inject) #Sample from Categorical distribution
     actual_states = [states[parse(Int64,a)] for a in sampled_states] #Extract vector values from sampled states
