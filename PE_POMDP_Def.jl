@@ -19,37 +19,8 @@ using StaticArrays
 using POMDPPolicies
 
 # #Include other functions
-# include("data_read.jl")
-# include("plot_image.jl")
 include("user_model.jl")
 
-# #Load point data
-# random_data = read_data("./data/random_data.csv")
-# random_data_300 = read_data("./data/random_data_300.csv")
-# user_frontdoor = read_data("./data/user_frontdoor.csv")
-# user_backdoor = read_data("./data/user_backdoor.csv")
-# user_building = read_data("./data/user_building.csv")
-# user_road = read_data("./data/user_road.csv")
-# test_points = read_data("./data/user_test.csv")
-# user_road_edges = read_data("./data/user_roadedges.csv")
-# user_road_intersection= read_data("./data/user_roadintersection.csv")
-# user_corners = read_data("./data/user_corners.csv")
-# user_other = read_data("./data/user_other.csv")
-
-# # Available points
-# points_data = random_data_300 #* (100/30)
-# final_points_data = random_data_300 # #TODO modify with actual set of points
-# # Points operator has chosen: 
-# ### ---  MODIFY TEST CASE HERE  --- ###
-# user_data = user_road
-# filename = "./data/out_images/testimage.png"
-
-# #Create beta Values
-# beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
-# final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]#TODO
-
-# #Choose a user model
-# user_model = user_expert
 
 function make_observations()
     # Creates a list of potential observations in an array of strings
@@ -149,7 +120,7 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
     r = 0.0
     if s.step <= pomdp.guess_steps+1
         if a == "wait"
-            r = -2  #Small negative for suggesting?
+            r = -1.2  #Small negative for suggesting?
         else 
             r = -1.0
         end            
@@ -334,38 +305,3 @@ function observation_suggest(m::PE_POMDP,s,obs,act)
     end
     return val
 end
-
-# guess_steps = 4
-
-# PE_fun =  PE_POMDP(user_road,user_model,0.99,guess_steps)  # Define POMDP
-# up = BootstrapFilter(PE_fun, 100)  # Unweighted particle filter
-# randomMDP = FORollout(RandomSolver())
-# solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
-# planner = solve(solver, PE_fun)
-# history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
-# a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-# # inchrome(D3Tree(info[:tree], init_expand=3))
-
-# # Show sequence
-# accepted_points = []
-# user_points = []
-# denied_points = []
-# for p in 1:length(history)
-#     act = history[p].a
-#     obs = history[p].o
-#     println(act,obs)
-#     if obs == "accept"
-#         push!(accepted_points,act)
-#     elseif obs == "deny"
-#         push!(denied_points,act)
-#     else
-#         push!(user_points,obs)
-#     end
-# end
-# u_x,u_y = extract_xy(user_points,points_data)
-# a_x,a_y = extract_xy(accepted_points,points_data)
-# d_x,d_y = extract_xy(denied_points,points_data)
-# i_x = [user_data[i][1] for i in 1:length(user_data)]
-# i_y = [user_data[i][2] for i in 1:length(user_data)]
-
-# plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)

@@ -36,22 +36,38 @@ final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_road
+user_data = user_frontdoor
 filename = "./data/out_images/testimage.png" #Final image for saving
-
-#Create beta Values
-beta_values = [points_data[i][4:6] for i in 1:length(points_data)]
-final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]#TODO
-choice_beta_values = [random_data[i][4:6] for i in 1:length(random_data)]
+filename_final = "./data/out_images/test_final_image.png" #Final image for saving
 
 #Choose a user model
-user_mode = user_expert
-user_ideal = [0.001,0.95,0.05]
+user_mode = user_novice
+user_ideal = [0.5,0.45,0.05] #[%building,%road,%other]
 
 #Number of steps before making selection
-guess_steps = 4
+guess_steps = 10
 
-function _run(user_data,beta_values,final_beta_values,choice_beta_values)
+function _run(user_data,user_ideal,guess_points,final_points,choice_points)
+    #Input:
+    #   user_data = [p_x,p_y,radius,%building,%road,%other] Full data vector
+    #   user_ideal = [%building,%road,%other] Desired feature vector
+    #   guess_points = [p_x,p_y,radius,%building,%road,%other] Full data vector
+    #   final_points = [p_x,p_y,radius,%building,%road,%other] Full data vector
+    #   choice_points = [p_x,p_y,radius,%building,%road,%other] Full data vector
+    #Output:
+    #   p_belief = Particle Filter object --> See ParticleFilter_Def.jl
+    #   
+    #   Following outputs are all in consistent format: ["idx1","idx2",...]
+    #       user_points: Set of points chosen by the user as part of wait action
+    #       accepted_points: Set of points suggested and accepted by user
+    #       denied_points: Set of points suggested and denied by user
+    ####
+
+    #Extract beta Values
+    beta_values = [guess_points[i][4:6] for i in 1:length(guess_points)]
+    final_beta_values = [final_points[i][4:6] for i in 1:length(final_points)]
+    choice_beta_values = [choice_points[i][4:6] for i in 1:length(choice_points)]
+
     u_points = user_data            #Initial set of user points
     s_points = beta_values          #Points that can be suggested by algorithm
     f_points = final_beta_values    #Final points to be propagated
@@ -80,7 +96,7 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
 
     #Initilize Belief with Particle Filter
     #Create Gaussian Distribution
-    p = 100 #Number of particles
+    p = 400 #Number of particles
     p_sample = 10 #Number of actions to consider --> Size of action space
     initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
     initial_p_set = [rand(initial_belief) for a in 1:p]
@@ -92,15 +108,14 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
     suggested_points = []
 
     best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
-    for step in 1:5
-    # step = 1
-        #Find the top 10 points for suggestion
-
+    for step in 1:guess_steps+1
+        
+        #Initialize POMDP with new action space: Figure out best action
+        #   Input into POMDP is only the beta values
+        #   Output is the index of the suggested value or "wait"
         model_step = guess_steps+1-step  # Lets solver know how many steps are left
         PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step)  # Define POMDP
-        up = BootstrapFilter(PE_fun, 100)  # Unweighted particle filter
         planner = solve(solver, PE_fun)
-        # history = collect(stepthrough(PE_fun, planner, up, "s,a,o,action_info", max_steps=guess_steps+1))
         a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
         # inchrome(D3Tree(info[:tree], init_expand=3))
         
@@ -118,6 +133,7 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
             response = sample_user_response(s_points[suggested_idx],user_ideal,user_mode)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,response)
+            
             #Record Keeping
             if response=="accept"
                 push!(accepted_points,string(suggested_idx))
@@ -142,13 +158,29 @@ function _run(user_data,beta_values,final_beta_values,choice_beta_values)
 end
 
 
-belief,user_points,accepted_points,denied_points = _run(user_road,beta_values,final_beta_values,choice_beta_values)
+belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data)
+
+#Propagate belief onto new image
+new_beliefs = rand(belief.states,10)
+chosen = []
+for sample in 1:length(new_beliefs)
+    idx,phi = find_similar_points(final_beta_values,new_beliefs[sample],1,chosen)
+    push!(chosen,string(Int(idx[1]))) 
+end
+
 
 #Visualization and image plotting
+#Initial Image extraction
 u_x,u_y = extract_xy(user_points,points_data)
 a_x,a_y = extract_xy(accepted_points,points_data)
 d_x,d_y = extract_xy(denied_points,points_data)
 i_x = [user_data[i][1] for i in 1:length(user_data)]
 i_y = [user_data[i][2] for i in 1:length(user_data)]
 
-plot_image([i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+#Final values extraction
+p_x,p_y = extract_xy(chosen,final_points_data)
+
+guess_image = "./images/Image1_raw.png"
+final_image = "./images/neighborhood_image.jpg"
+plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
