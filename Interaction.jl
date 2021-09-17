@@ -26,11 +26,6 @@ user_building = read_data("./data/user_building.csv")
 user_road = read_data("./data/user_road.csv")
 test_points = read_data("./data/user_test.csv")
 user_road_edges = read_data("./data/user_roadedges.csv")
-user_road_intersection= read_data("./data/user_roadintersection.csv")
-user_corners = read_data("./data/user_corners.csv")
-user_other = read_data("./data/user_other.csv")
-
-# Available points
 points_data = random_data_300 #* (100/30)
 final_points_data = neighborhood_data #
 
@@ -41,13 +36,13 @@ filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/test_final_image.png" #Final image for saving
 
 #Choose a user model
-user_mode = user_novice
+user = user_novice
 user_ideal = [0.5,0.45,0.05] #[%building,%road,%other]
 
 #Number of steps before making selection
-guess_steps = 10
+num_guess = 10
 
-function _run(user_data,user_ideal,guess_points,final_points,choice_points)
+function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_mode,guess_steps)
     #Input:
     #   user_data = [p_x,p_y,radius,%building,%road,%other] Full data vector
     #   user_ideal = [%building,%road,%other] Desired feature vector
@@ -158,15 +153,10 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points)
 end
 
 
-belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data)
+belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
 
 #Propagate belief onto new image
-new_beliefs = rand(belief.states,10)
-chosen = []
-for sample in 1:length(new_beliefs)
-    idx,phi = find_similar_points(final_beta_values,new_beliefs[sample],1,chosen)
-    push!(chosen,string(Int(idx[1]))) 
-end
+chosen = final_guess(final_points_data,belief,10)
 
 
 #Visualization and image plotting
@@ -182,5 +172,5 @@ p_x,p_y = extract_xy(chosen,final_points_data)
 
 guess_image = "./images/Image1_raw.png"
 final_image = "./images/neighborhood_image.jpg"
-plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
-plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
+# plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+# plot_image(final_image,[],[],[p_y,p_x],[],filename_final)

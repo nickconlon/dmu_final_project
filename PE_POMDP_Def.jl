@@ -305,3 +305,19 @@ function observation_suggest(m::PE_POMDP,s,obs,act)
     end
     return val
 end
+
+function final_guess(final_points_data,belief,num_points)
+    #Propagate belief onto new image by sampling particle filter
+    #Outputs a vector of string values
+    #Extract features
+    final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]
+    #Sample particles
+    new_beliefs = rand(belief.states,num_points)
+    chosen = []
+    #Find most similar point to belief
+    for sample in 1:length(new_beliefs)
+        idx,phi = find_similar_points(final_beta_values,new_beliefs[sample],1,chosen)
+        push!(chosen,string(Int(idx[1]))) 
+    end
+    return chosen 
+end

@@ -1,8 +1,8 @@
 
 novice_accuracy = 0.8
 expert_accuracy = 0.99
-novice_certainty = 0.2
-expert_certainty = 0.1
+novice_certainty = 5
+expert_certainty = 10
 novice_availability = 1.0
 expert_availability = 1.0
 
@@ -17,11 +17,11 @@ user_expert = User_Model(expert_accuracy, expert_certainty,expert_availability)
 
 function sample_new_point(points,ideal,user)
     #Create distribution     
-    choice_dist = Dirichlet(ideal)
+    choice_dist = Dirichlet(ideal*user.certainty)
     #Sample from distribution
     choice_phi = rand(choice_dist,1)
     #Find closest point
-    new_point = find_similar_points(points,choice_phi,1)
+    new_point = find_similar_points(points,choice_phi,1,[])
     return new_point
 end
 
