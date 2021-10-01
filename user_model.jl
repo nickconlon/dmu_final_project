@@ -27,8 +27,12 @@ end
 
 function sample_user_response(point,ideal,user)
     #This function samples a user's response to a suggested point
+    #Define distribution
+    choice_dist = Dirichlet(ideal*user.certainty)
+    #Sample from distribution
+    choice_phi = rand(choice_dist,1)
     #Compare point similarity
-    sim = similarity(point,ideal)
+    sim = similarity(point,choice_phi)
 
     #Generate Probabilities
     acc = user.accuracy

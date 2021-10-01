@@ -312,11 +312,11 @@ function final_guess(final_points_data,belief,num_points)
     #Extract features
     final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]
     #Sample particles
-    new_beliefs = rand(belief.states,num_points)
+    avg_belief = mean(belief.states)
     chosen = []
     #Find most similar point to belief
-    for sample in 1:length(new_beliefs)
-        idx,phi = find_similar_points(final_beta_values,new_beliefs[sample],1,chosen)
+    for sample in 1:num_points
+        idx,phi = find_similar_points(final_beta_values,avg_belief,1,chosen)
         push!(chosen,string(Int(idx[1]))) 
     end
     return chosen 

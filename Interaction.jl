@@ -172,5 +172,5 @@ p_x,p_y = extract_xy(chosen,final_points_data)
 
 guess_image = "./images/Image1_raw.png"
 final_image = "./images/neighborhood_image.jpg"
-# plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
-# plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
+plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
