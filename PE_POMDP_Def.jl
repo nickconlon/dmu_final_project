@@ -167,7 +167,7 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
         # recompute ParticleCollection
         b = beta_values[parse(Int64,a)]#(x,y,z)
         sim_metric = similarity(s.phi, b)
-        sim_metric = sim_metric*0.8 #Semi-arbitrary weighting
+        sim_metric = sim_metric*0.6 #Semi-arbitrary weighting
         acc = m.user.accuracy
         av = m.user.availability
         # sim_metric = sim_metric/norm(sim_metric)
@@ -262,9 +262,19 @@ end
 
 function find_similar_points(points,phi,n,bad_points)
     #Function takes in a phi value and finds the top n similar points
+    #Find if any points are taken multiple times
+    double_acts = 0
+    points_copy = deepcopy(bad_points)
+    for a in 1:length(bad_points)
+        popfirst!(points_copy)
+        if any(i -> bad_points[a] == i,points_copy)
+            double_acts += 1
+        end
+    end
     #Find top similar points
-    similar_points = Array{Vector{Any}}(undef,length(points)-length(bad_points))
+    similar_points = Array{Vector{Any}}(undef,length(points)-length(bad_points)+double_acts)
     min_count = 0
+    println(bad_points)
     for p in 1:length(points)
         #Remove any previously suggested points
         if ~any(i -> string(p) == i,bad_points)
@@ -277,9 +287,10 @@ function find_similar_points(points,phi,n,bad_points)
     #Sort likeliest points
     likely_points = sort!(similar_points,rev = true)
     #Extract best points for input into solver
-    best_point_idx = [likely_points[ind][2] for ind in 1:n]
-    best_point_phi = [points[Int(i)] for i in best_point_idx]
-    return best_point_idx, best_point_phi
+    #Idx should be in string form
+    best_point_idx = [Int(likely_points[ind][2]) for ind in 1:n]
+    best_point_phi = [points[i] for i in best_point_idx]
+    return string.(best_point_idx), best_point_phi
 end
 
 function observation_similarity_wait(state,point)
@@ -317,7 +328,7 @@ function final_guess(final_points_data,belief,num_points)
     #Find most similar point to belief
     for sample in 1:num_points
         idx,phi = find_similar_points(final_beta_values,avg_belief,1,chosen)
-        push!(chosen,string(Int(idx[1]))) 
+        push!(chosen,idx[1]) 
     end
     return chosen 
 end

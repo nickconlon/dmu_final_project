@@ -31,7 +31,7 @@ final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_frontdoor
+# user_data = user_frontdoor
 filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/test_final_image.png" #Final image for saving
 
@@ -92,7 +92,7 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
     #Initilize Belief with Particle Filter
     #Create Gaussian Distribution
     p = 400 #Number of particles
-    p_sample = 10 #Number of actions to consider --> Size of action space
+    p_sample = 10 #Number of acuser_datations to consider --> Size of action space
     initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
     initial_p_set = [rand(initial_belief) for a in 1:p]
     p_belief = InjectionParticleFilter(initial_p_set,Int(round(p*0.05)),initial_belief)
@@ -101,10 +101,12 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
     user_points = []
     denied_points = []
     suggested_points = []
+    p_belief_history = Array{InjectionParticleFilter}(undef,guess_steps+1)
 
     best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
     for step in 1:guess_steps+1
-        
+        #Save particle belief
+        p_belief_history[step] = p_belief
         #Initialize POMDP with new action space: Figure out best action
         #   Input into POMDP is only the beta values
         #   Output is the index of the suggested value or "wait"
@@ -117,15 +119,15 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
         # Action response 
         if a == "wait"
             #Randomly sample point based on user model
-            new_user_point = sample_new_point(choice_beta_values,user_ideal,user_mode)
+            new_user_idx,new_user_point = sample_new_point(choice_beta_values,user_ideal,user_mode,user_points)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,new_user_point)
-            push!(user_points,new_user_point) #Record keeping
+            push!(user_points,new_user_idx[1]) #Record keeping
         else
             #Find global point from suggested point
-            suggested_idx = Int(best_points_idx[parse(Int64,a)])
+            suggested_idx = best_points_idx[parse(Int64,a)]
             #Randomly sample user's response based on user model
-            response = sample_user_response(s_points[suggested_idx],user_ideal,user_mode)
+            response = sample_user_response(s_points[parse(Int64,suggested_idx)],user_ideal,user_mode)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,response)
             
@@ -149,28 +151,28 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
         end
         
     end
-    return p_belief,user_points,accepted_points,denied_points
+    return p_belief,user_points,accepted_points,denied_points,p_belief_history
 end
 
 
-belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
+# belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
 
-#Propagate belief onto new image
-chosen = final_guess(final_points_data,belief,10)
+# #Propagate belief onto new image
+# chosen = final_guess(final_points_data,belief,10)
 
 
-#Visualization and image plotting
-#Initial Image extraction
-u_x,u_y = extract_xy(user_points,points_data)
-a_x,a_y = extract_xy(accepted_points,points_data)
-d_x,d_y = extract_xy(denied_points,points_data)
-i_x = [user_data[i][1] for i in 1:length(user_data)]
-i_y = [user_data[i][2] for i in 1:length(user_data)]
+# #Visualization and image plotting
+# #Initial Image extraction
+# u_x,u_y = extract_xy(user_points,points_data)
+# a_x,a_y = extract_xy(accepted_points,points_data)
+# d_x,d_y = extract_xy(denied_points,points_data)
+# i_x = [user_data[i][1] for i in 1:length(user_data)]
+# i_y = [user_data[i][2] for i in 1:length(user_data)]
 
-#Final values extraction
-p_x,p_y = extract_xy(chosen,final_points_data)
+# #Final values extraction
+# p_x,p_y = extract_xy(chosen,final_points_data)
 
-guess_image = "./images/Image1_raw.png"
-final_image = "./images/neighborhood_image.jpg"
-plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
-plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
+# guess_image = "./images/Image1_raw.png"
+# final_image = "./images/neighborhood_image.jpg"
+# plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], filename)
+# plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
