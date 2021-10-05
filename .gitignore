@@ -39,6 +39,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# caffe/pytorch model files
+*.pth
+
 # C extensions
 *.so
 
