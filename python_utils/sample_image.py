@@ -119,8 +119,9 @@ def sample_from_data():
 def sample_raw():
     DATA = 8
     SAMPLES = None
-    IMAGE_NAME = 'images/hand_segmentation.png'
-    CSV_NAME = 'data/random_data_300'
+    IMAGE_NAME = '../images/hand_segmentation.png'
+    IMAGE_NAME = '../images/neighborhood_image_segmented.png'
+    CSV_NAME = '../data/sampled_300_neighborhood_bgr_1'
     SCALE_FACTOR = 100
     RADIUS = 200
 
