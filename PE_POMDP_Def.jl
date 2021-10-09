@@ -56,15 +56,19 @@ function sample_initial_state(m)
     # Determine the starting state. Calls the global state variable and puts it in a Vector
     # Can be modified to add noise
     POI = m.user_points  
-    avg_b = mean([POI[a][4] for a in 1:length(POI)])
-    avg_r = mean([POI[a][5] for a in 1:length(POI)])
-    avg_n = mean([POI[a][6] for a in 1:length(POI)])
-    cov_b = std([POI[a][4] for a in 1:length(POI)])
-    cov_r = std([POI[a][5] for a in 1:length(POI)])
-    cov_n = std([POI[a][6] for a in 1:length(POI)])
-    phi = [avg_b,avg_r,avg_n] 
+    phi = []
+    cov = []
+    for i in 4:length(POI[1])
+        ave_i = mean([POI[a][i] for a in 1:length(POI)])
+        push!(phi, ave_i)
+        cov_i = std([POI[a][i] for a in 1:length(POI)])
+        push!(cov, cov_i)
+    end
     phi = phi/norm(phi)  # Normalize
-    init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
+    init_cov = zeros(length(phi), length(phi))
+    for i in 1:length(phi)
+        init_cov[i,i] = cov[i]^2
+    end
     return State(phi,[],0)
 end
 
@@ -89,15 +93,19 @@ end
 function POMDPs.initialstate(m::PE_POMDP)
     function init_state(rng)
         POI = m.user_points  
-        avg_b = mean([POI[a][4] for a in 1:length(POI)])
-        avg_r = mean([POI[a][5] for a in 1:length(POI)])
-        avg_n = mean([POI[a][6] for a in 1:length(POI)])
-        cov_b = std([POI[a][4] for a in 1:length(POI)])
-        cov_r = std([POI[a][5] for a in 1:length(POI)])
-        cov_n = std([POI[a][6] for a in 1:length(POI)])
-        phi = [avg_b,avg_r,avg_n] 
+        phi = []
+        cov = []
+        for i in 4:length(POI[1])
+            ave_i = mean([POI[a][i] for a in 1:length(POI)])
+            push!(phi, ave_i)
+            cov_i = std([POI[a][i] for a in 1:length(POI)])
+            push!(cov, cov_i)
+        end
         phi = phi/norm(phi)  # Normalize
-        init_cov = [cov_b^2 0 0; 0 cov_r^2 0; 0 0 cov_n^2]
+        init_cov = zeros(length(phi), length(phi))
+        for i in 1:length(phi)
+            init_cov[i,i] = cov[i]^2
+        end
         new_state = State(phi,[],0)
         return new_state
     end
@@ -321,7 +329,7 @@ function final_guess(final_points_data,belief,num_points)
     #Propagate belief onto new image by sampling particle filter
     #Outputs a vector of string values
     #Extract features
-    final_beta_values = [final_points_data[i][4:6] for i in 1:length(final_points_data)]
+    final_beta_values = [final_points_data[i][4:end] for i in 1:length(final_points_data)]
     #Sample particles
     avg_belief = mean(belief.states)
     chosen = []

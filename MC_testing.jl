@@ -65,7 +65,7 @@ for u in 1:2
 
         #Add chosen points to list
         for I in chosen
-            vals = final_points_data[parse(Int64,I)][4:6]
+            vals = final_points_data[parse(Int64,I)][4:end]
             push!(chosen_set,vals)
             push!(chosen_idx,I)
         end
@@ -86,10 +86,10 @@ for u in 1:2
     end
 end
 
-user_set_mean = [mean([user_data[a][4] for a in 1:length(user_data)]),
-                mean([user_data[a][5] for a in 1:length(user_data)]),
-                mean([user_data[a][6] for a in 1:length(user_data)])]
-user_set_betas = [user_data[i][4:6] for i in 1:length(user_data)]
+#user_set_mean = [mean([user_data[a][4] for a in 1:length(user_data)]),
+#                mean([user_data[a][5] for a in 1:length(user_data)]),
+#                mean([user_data[a][6] for a in 1:length(user_data)])]
+user_set_betas = [user_data[i][4:end] for i in 1:length(user_data)]
 #Final values extraction
 p_x,p_y = extract_xy(chosen_idx,final_points_data)
 

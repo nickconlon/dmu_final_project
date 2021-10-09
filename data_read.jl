@@ -5,17 +5,19 @@ function read_data(file)
     # file = "random_data.csv"
     # random_data= Array{Float64,1}
     random_data = []
-
+    ffile = CSV.File(file)
+    columns = length(ffile.names)
     #Read through the different rows
-    for row in CSV.Rows(file)
+    for row in ffile
         #Convert to Float64
-        x = parse(Float64, row.x)
-        y = parse(Float64,row.y)
-        r = parse(Float64,row.r)
-        building = parse(Float64,row.building)
-        road = parse(Float64,row.road)
-        none = parse(Float64,row.none)
-        push!(random_data,[x,y,r,building,road,none]) #Add to list
+        x = row[1]
+        y = row[2]
+        r = row[3]
+        features = Array{Float64}([x,y,r])
+        for feature in 4:columns
+            push!(features, row[feature])
+        end
+        push!(random_data,features) #Add to list
     end
     return random_data
 end

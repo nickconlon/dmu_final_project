@@ -2,6 +2,8 @@ import cv2.cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 
+import nn_feature_extractor as nn_extractor
+import bgr_feature_extractor as class_extractor
 
 def write(file_name, d, labels):
     """
@@ -18,17 +20,19 @@ def write(file_name, d, labels):
             file.write(s_list)
 
 
-def sample(im, sample_points=None, num_points=50, r=20):
+def sample(im, extractor, sample_points=None, num_points=50, r=20):
     """
     Sample uniformly at random num_points samples with radius r.
     class probability is (p1, p2, p3) = (building, road, nothing)
 
+    :param extractor:
     :param im:              The image
     :param sample_points:   A sample of points to use
     :param num_points:      The number of points to sample
     :param r:               The radius of each point
     :return:                list[point_x, point_y, r, p1, p2, p3]
     """
+
     w = im.shape[1]
     h = im.shape[0]
     mask = np.zeros([2*r, 2*r], dtype=np.uint8)
@@ -51,23 +55,12 @@ def sample(im, sample_points=None, num_points=50, r=20):
         t = im[pt[1]-r:pt[1]+r, pt[0]-r:pt[0]+r]
         try:
             masked_img = cv.bitwise_or(t, t, mask=mask)
+            #cv.imwrite('images/samples/im' + str(i) + '.jpg', masked_img)
         except:
             print("ERROR: pt={}, r={}".format(pt, r))
             continue
-        classes = np.zeros(3)
-        for x in range(2*r):
-            for y in range(2*r):
-                rr = np.linalg.norm(np.array([r, r], dtype=np.uint8)-np.array([x,y]))
-                if rr <= r:
-                    c = masked_img[y, x]  # opencv uses BGR convention!
-                    if c[0] >= 200:  # Blue
-                        classes[1] += 1
-                    elif c[2] >= 200:  # Red
-                        classes[0] += 1
-                    elif c[0] == 0 and c[1] == 0 and c[2] == 0:
-                        classes[2] += 1
 
-        class_prob = np.around(classes/sum(classes), 2)
+        class_prob = extractor.extract(masked_img, r)
         points.append([pt[0], pt[1], r, class_prob[0], class_prob[1], class_prob[2]])
 
         # Print out the image.
@@ -126,8 +119,9 @@ def sample_from_data():
 def sample_raw():
     DATA = 8
     SAMPLES = None
-    IMAGE_NAME = 'images/hand_segmentation.png'
-    CSV_NAME = 'data/random_data_300'
+    IMAGE_NAME = '../images/hand_segmentation.png'
+    IMAGE_NAME = '../images/neighborhood_image_segmented.png'
+    CSV_NAME = '../data/sampled_300_neighborhood_bgr_1'
     SCALE_FACTOR = 100
     RADIUS = 200
 
@@ -141,7 +135,14 @@ def sample_raw():
     radius = int(RADIUS * (SCALE_FACTOR / 100))
 
     # TODO sample uniformly over classes, not (x,y) points
-    data = sample(img, sample_points=None, num_points=350, r=75)
+
+    # Standard BGR class feature extractor
+    #extractor = class_extractor.Extractor()
+
+    # Cool NN feature extractor
+    extractor = nn_extractor.Extractor()
+
+    data = sample(img, extractor=extractor, sample_points=None, num_points=300, r=50)
     write(CSV_NAME + ".csv", data, ["x", "y", "r", "building", "road", "none"])
 
     cv.imshow("", img)

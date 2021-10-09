@@ -59,9 +59,9 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
     ####
 
     #Extract beta Values
-    beta_values = [guess_points[i][4:6] for i in 1:length(guess_points)]
-    final_beta_values = [final_points[i][4:6] for i in 1:length(final_points)]
-    choice_beta_values = [choice_points[i][4:6] for i in 1:length(choice_points)]
+    beta_values = [guess_points[i][4:end] for i in 1:length(guess_points)]
+    final_beta_values = [final_points[i][4:end] for i in 1:length(final_points)]
+    choice_beta_values = [choice_points[i][4:end] for i in 1:length(choice_points)]
 
     u_points = user_data            #Initial set of user points
     s_points = beta_values          #Points that can be suggested by algorithm
@@ -72,20 +72,21 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
     solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 
     #Get statistics on initial set of user points
-    avg_b = mean([u_points[a][4] for a in 1:length(u_points)])
-    avg_r = mean([u_points[a][5] for a in 1:length(u_points)])
-    avg_n = mean([u_points[a][6] for a in 1:length(u_points)])
-    cov_b = std([u_points[a][4] for a in 1:length(u_points)])
-    cov_r = std([u_points[a][5] for a in 1:length(u_points)])
-    cov_n = std([u_points[a][6] for a in 1:length(u_points)])
-    phi = [avg_b,avg_r,avg_n] 
-    cov = [cov_b,cov_r,cov_n]
+    phi = []
+    cov = []
+    for i in 4:length(u_points[1])
+        ave_i = mean([u_points[a][i] for a in 1:length(u_points)])
+        push!(phi, ave_i)
+        cov_i = std([u_points[a][i] for a in 1:length(u_points)])
+        push!(cov, cov_i)
+    end
+
     phi = phi/norm(phi)  # Normalize
     cov = cov/norm(cov)
     #Any zero values must be made non-zero to make phi a positive vector in Dirichlet Dist.
     for a in 1:length(phi)
         if phi[a] == 0.0
-            phi[a] = 0.001
+            phi[a] = 1e-5
         end
     end
 
