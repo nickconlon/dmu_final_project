@@ -49,6 +49,15 @@ class Extractor:
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
         self.model = new_model.to(self.device)
 
+        self._labels = ["building", "road", "none"]
+        self._type = "nn"
+
+    def feature_labels(self):
+        return self._labels
+
+    def type(self):
+        return self._type
+
     def extract(self, image_data, r):
         transformed_data = self.transform(image_data)
         img = transformed_data.reshape(1, 3, 448, 448)

@@ -3,7 +3,13 @@ import numpy as np
 
 class Extractor:
     def __init__(self):
-        pass
+        self._labels = ["building", "road", "none"]
+        self._type = 'brn'
+    def feature_labels(self):
+        return self._labels
+
+    def type(self):
+        return self._type
 
     def extract(self, image_data, r):
         classes = np.zeros(3)
