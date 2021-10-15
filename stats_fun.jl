@@ -27,6 +27,16 @@ function user_select_MC(user_set_betas,guessing_points,user,user_ideal,MC_runs,n
     #Generate Average Set of Points for User as comparison
     user_avg_belief = Array{Float64}(undef,MC_runs,num_guess+1+length(user_set_betas))
     beta_values_select = [guessing_points[i][4:6] for i in 1:length(guessing_points)]
+    #Code for taking average of initial set of points
+    # mean_user_vals = [mean([user_set_betas[a][1] for a in 1:length(user_set_betas)]),
+    #                 mean([user_set_betas[a][2] for a in 1:length(user_set_betas)]),
+    #                 mean([user_set_betas[a][3] for a in 1:length(user_set_betas)])]
+    # #Any zero values must be made non-zero to make phi a positive vector in Dirichlet Dist.
+    # for a in 1:length(mean_user_vals)
+    #     if mean_user_vals[a] == 0.0
+    #         mean_user_vals[a] = 0.001
+    #     end
+    # end
     # all_points = Array{Vector{Float64}}(undef,length(user_data)+num_guess)
     all_user_points_phi = []
     # Account for initial set of points

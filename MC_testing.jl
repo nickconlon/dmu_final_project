@@ -27,14 +27,15 @@ final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_road
+user_data = user_road_edges
 filename = "./data/out_images/testimage.png" #Final image for saving
-filename_final = "./data/out_images/test_final_image.png" #Final image for saving
-
+filename_final = "./data/out_images/RoadEdge_final.png"
+brier_filename = "./data/out_images/Brier_Score_Road_Edge.png" #Final image for saving
+plot_title = "Brier Score for Road Edge Use Case"
 #Choose a user model
 user = user_expert
 user_label = "Expert"
-user_ideal = [0.001,0.90,0.05] #[%building,%road,%other]
+user_ideal = [0.01,0.5,0.5] #[%building,%road,%other]
 
 #Number of steps before making selection
 num_guess = 15
@@ -93,11 +94,6 @@ user_set_betas = [user_data[i][4:end] for i in 1:length(user_data)]
 #Final values extraction
 p_x,p_y = extract_xy(chosen_idx,final_points_data)
 
-#Plot all points
-guess_image = "./images/Image1_raw.png"
-final_image = "./images/neighborhood_image.jpg"
-# plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
-
 
 #Initiate User Selection for EXPERT
 user = user_expert
@@ -118,10 +114,16 @@ x = range(0,num_guess+1,length = num_guess+1)
 p = plot!(x,user_brier_plot_nov[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_nov[2,length(user_set_betas)+1:end],label =:"Novice Average")
 
 
-title!("Brier Score Over Time")
+title!(plot_title)
 xlabel!("Observation")
 ylabel!("Brier Score")
 display(p)
+savefig(p, brier_filename)
+
+#Plot all points
+guess_image = "./images/Image1_raw.png"
+final_image = "./images/neighborhood_image.jpg"
+plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
 
 # #Finding means
 # #Compare chosen points with sampled ideal

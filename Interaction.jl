@@ -92,8 +92,8 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
 
     #Initilize Belief with Particle Filter
     #Create Gaussian Distribution
-    p = 400 #Number of particles
-    p_sample = 10 #Number of acuser_datations to consider --> Size of action space
+    p = 5000 #Number of particles
+    p_sample = 10 #Number of user actions to consider --> Size of action space
     initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
     initial_p_set = [rand(initial_belief) for a in 1:p]
     p_belief = InjectionParticleFilter(initial_p_set,Int(round(p*0.05)),initial_belief)

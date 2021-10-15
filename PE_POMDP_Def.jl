@@ -282,7 +282,6 @@ function find_similar_points(points,phi,n,bad_points)
     #Find top similar points
     similar_points = Array{Vector{Any}}(undef,length(points)-length(bad_points)+double_acts)
     min_count = 0
-    println(bad_points)
     for p in 1:length(points)
         #Remove any previously suggested points
         if ~any(i -> string(p) == i,bad_points)
