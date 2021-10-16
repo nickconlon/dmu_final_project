@@ -23,9 +23,9 @@ class Autoencoder(nn.Module):
         self.enc4 = nn.Linear(in_features=128, out_features=64)
         self.enc5 = nn.Linear(in_features=64, out_features=32)
         self.enc6 = nn.Linear(in_features=32, out_features=16)
-        self.enc7 = nn.Linear(in_features=16, out_features=4)
+        #self.enc7 = nn.Linear(in_features=16, out_features=4)
         # decoder
-        self.dec0 = nn.Linear(in_features=4, out_features=16)
+        #self.dec0 = nn.Linear(in_features=4, out_features=16)
         self.dec1 = nn.Linear(in_features=16, out_features=32)
         self.dec2 = nn.Linear(in_features=32, out_features=64)
         self.dec3 = nn.Linear(in_features=64, out_features=128)
@@ -40,11 +40,11 @@ class Autoencoder(nn.Module):
         x = F.relu(self.enc4(x))
         x = F.relu(self.enc5(x))
         x = F.relu(self.enc6(x))
-        x = F.relu(self.enc7(x))
+        #x = F.relu(self.enc7(x))
         return x
 
     def decode(self, x):
-        x = F.relu(self.dec0(x))
+        #x = F.relu(self.dec0(x))
         x = F.relu(self.dec1(x))
         x = F.relu(self.dec2(x))
         x = F.relu(self.dec3(x))
@@ -69,18 +69,17 @@ class Extractor:
         new_model = Autoencoder()
         #
         if option == 'load':
-            new_model.load_state_dict(torch.load("./models/pomdp_autoencoder_sz4.pth", map_location=torch.device('cpu')))
+            new_model.load_state_dict(torch.load("./models/pomdp_autoencoder_sz16.pth", map_location=torch.device('cpu')))
         if option == 'save':
             torch.save(new_model.state_dict(), "./models/pomdp_autoencoder_new.pth")
         # Change the device to GPU
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
         self.model = new_model.to(self.device)
 
-        self._labels = []
-        self.num_features = 4
-        for i in np.arange(1, self.num_features+1):
-            self._labels.append("f"+str(i))
-        self._type = "ae"
+       #TODO latent_space_size
+        self._num_features = 16
+        self._labels = ["f" + str(x) for x in np.arange(1, self._num_features+1)]
+        self._type = "ae"+str(len(self._labels))
 
     def feature_labels(self):
         return self._labels
@@ -261,7 +260,7 @@ if __name__ == "__main__":
     NUM_EPOCHS = 250
     LEARNING_RATE = 1e-3
     BATCH_SIZE = 128
-    LATENT_SPACE_SIZE = 4
+    LATENT_SPACE_SIZE = 16
     TRAIN_PATH = 'images/samples/train'
     TEST_PATH = 'images/samples/test'
     NETWORK_SAVE_PATH = 'models/pomdp_autoencoder_sz'+str(LATENT_SPACE_SIZE)+'.pth'
@@ -278,3 +277,4 @@ if __name__ == "__main__":
     # Playing around...
     #
     plot_encoding_comparisons(TEST_PATH, NETWORK_SAVE_PATH)
+
