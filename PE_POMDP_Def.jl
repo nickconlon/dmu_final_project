@@ -81,13 +81,13 @@ struct State
 end
 
 struct PE_POMDP <: POMDP{State,String,String} 
-    user_points::Array{Any,1}
-    suggest_points::Array{Any,1}
-    observe_points::Array{Any,1}
-    final_points::Array{Any,1}
-    user::User_Model
-    discount_factor::Float64
-    guess_steps::Int64
+    user_points::Array{Any,1}       # Points provided by the user
+    suggest_points::Array{Any,1}    # Points that can be suggested to the user
+    observe_points::Array{Any,1}    # Points that can be added by user without suggestion
+    final_points::Array{Any,1}      # Final set of points to be propagated over
+    user::User_Model                # User type
+    discount_factor::Float64        # Discount 
+    guess_steps::Int64              # Number of steps for guessing 
 end
 
 function POMDPs.initialstate(m::PE_POMDP)
@@ -148,7 +148,7 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
     #     s = State(s,[],1)
     # end
     if a == "wait"
-    beta_values = m.observe_points
+        beta_values = m.observe_points
         # points already accepted should get zero probability mass
         # [p1, p2,... pn] = (p(p1), p(p2)) = normalized(sim_metric(p1, s.phi), sim_metric(p2, s.phi), ...)
         p_a = []
@@ -156,7 +156,7 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
         # Look through all actions and see which one the user is most likely to add
         for (i, act) in enumerate(actions(m,s))  # How does this work?
             if act != "wait"
-                b = beta_values[parse(Int64,act)]#(x,y,z)
+                b = beta_values[parse(Int64,act)] # (x,y,z)
                 out = sample_initial_state(m)
                 sim_metric = observation_similarity_wait(out.phi,b)
                 push!(p_a,sim_metric)
@@ -176,14 +176,15 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
         b = beta_values[parse(Int64,a)]#(x,y,z)
         sim_metric = similarity(s.phi, b)
         sim_metric = sim_metric*0.6 #Semi-arbitrary weighting
+        random_guess = 1/length(m.suggest_points)
         acc = m.user.accuracy
         av = m.user.availability
         # sim_metric = sim_metric/norm(sim_metric)
         
-        # Temporary stand-in for points that are estimated to be accepted
+        # Belief update:
         #p(accept) = p(accurate)p(accept|accurate) + p(not accurate)p(accept|not accurate)
         #p(deny) = p(accurate)p(deny|accurate) + p(not accurate)p(deny|not accurate)
-        percentage = [av*(acc*sim_metric + (1-acc)*(1-sim_metric)),av*(acc*(1-sim_metric)+(1-acc)*sim_metric)]
+        percentage = [av*(acc*sim_metric + (1-acc)*(random_guess)),av*(acc*(random_guess)+(1-acc)*sim_metric)]
         # println(p)
         return SparseCat(["accept", "deny"], percentage)
     end

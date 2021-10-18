@@ -30,7 +30,7 @@ final_points_data = neighborhood_data #
 user_data = user_road_edges
 filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/RoadEdge_final.png"
-brier_filename = "./data/out_images/Brier_Score_Road_Edge.png" #Final image for saving
+brier_filename = "./data/out_images/Brier_Score_Road_Edge_1mSim.png" #Final image for saving
 plot_title = "Brier Score for Road Edge Use Case"
 #Choose a user model
 user = user_expert
@@ -39,7 +39,7 @@ user_ideal = [0.01,0.5,0.5] #[%building,%road,%other]
 
 #Number of steps before making selection
 num_guess = 15
-MC_runs = 1000
+MC_runs = 200
 
 chosen_set = []
 chosen_idx = []
@@ -113,6 +113,7 @@ user_brier_plot_nov = brier_crunch(user_avg_belief_nov,MC_runs,num_guess+length(
 x = range(0,num_guess+1,length = num_guess+1)
 p = plot!(x,user_brier_plot_nov[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_nov[2,length(user_set_betas)+1:end],label =:"Novice Average")
 
+#Greedy Policy
 
 title!(plot_title)
 xlabel!("Observation")

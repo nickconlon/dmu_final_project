@@ -28,6 +28,13 @@ function update_PF(b::InjectionParticleFilter,m::PE_POMDP,a,o)
     return InjectionParticleFilter(states,P_inject,D_inject)
 end
 
+function init_PF(phi,particles)
+    initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
+    initial_p_set = [rand(initial_belief) for a in 1:particles]
+    p_belief = InjectionParticleFilter(initial_p_set,Int(round(particles*0.05)),initial_belief)
+    return p_belief
+end
+
 #Set Categorical Array [Taken from Algorithms For Decision Making Textbook]
 struct SetCategorical{S}
     elements::Vector{S} # Set elements (could be repeated)
