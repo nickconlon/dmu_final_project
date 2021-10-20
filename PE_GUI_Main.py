@@ -72,7 +72,7 @@ class PreferenceAlgorithm:
             # Reset the message array
             self.user_points_msgs = []
             # Generate a mean vector to initialize particle belief
-            self.phi = [sum(x) / len(x) for x in zip(*self.user_points)]
+            self.phi = [sum(x) / len(x) for x in zip(*self.user_points[:, 3:])]
             # Initialize belief
             self.belief = Main.init_PF(self.phi, self.num_particles)
 
