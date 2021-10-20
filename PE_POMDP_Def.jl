@@ -2,7 +2,7 @@ using StaticArrays: beta
 using Base: Float64
 using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPModels
-using BasicPOMCP
+using BasicPOMCP: POMCPTree, search
 using POMDPModels
 using POMDPModelTools
 using D3Trees
@@ -339,4 +339,22 @@ function final_guess(final_points_data,belief,num_points)
         push!(chosen,idx[1]) 
     end
     return chosen 
+end
+
+function find_next_action(plan,m)
+    # a, info = Base.invokelatest(action_info(planner, initialstate(m), tree_in_info=false))
+    # for (a) in stepthrough(m, planner, "a", max_steps=1)
+    #     act = a 
+    # end
+    # act = stepthrough(m,planner,"a", max_steps = 1)
+    # # println(fieldnames(typeof(act)))
+    # for eval(a) in act
+    #     first = a
+    # end
+    b = initialstate(m)
+    info = Dict{Symbol, Any}()
+    tree = POMCPTree(plan.problem, b, plan.solver.tree_queries)
+    # a = convert(actiontype(planner.problem), default_action(planner.solver.default_action, planner.problem, b, ex))
+    a = Base.invokelatest(search(plan, b, tree, info))
+    return a
 end
