@@ -32,6 +32,7 @@ def show_save_image(img, data, fname, show=False, save=True):
     """
     im = img.copy()
     for i, d in enumerate(data):
+        d = [int(x) for x in d]
         im = cv.circle(im, (d[0], d[1]), d[2], color=(255, 255, 255), thickness=1)
         im = cv.putText(im, str(i), (d[0], d[1]), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv.LINE_AA)
 
@@ -84,33 +85,47 @@ def sample(im, extractor, sample_points=None, num_points=50, r=20):
         class_prob = extractor.extract(masked_img, r)
         points.append([pt[0], pt[1], r, *class_prob])
 
-    return points
+    return np.array(points)
 
 
-def sample_ae(im, num_samples, r):
+def sample_ae(im, num_samples, r, sample_points=None):
     """
     Sample using the AutoEncoder
 
-    :param im:          The image to sample
-    :param num_samples: The number of samples
-    :param r:           The radius of each sample
-    :return:            list[point_x, point_y, r, f1, f2,...,fn]
+    :param im:              The image to sample
+    :param num_samples:     The number of samples
+    :param r:               The radius of each sample
+    :param sample_points    List of points to sample or None if random  sample
+    :return:                list[point_x, point_y, r, f1, f2,...,fn]
     """
     extractor = ae_extractor.Extractor(option='load')
-    return sample(im=im, extractor=extractor, num_points=num_samples, r=r)
+    return sample(im=im, extractor=extractor, sample_points=sample_points, num_points=num_samples, r=r)
 
 
-def sample_class(im, num_samples, r):
+def sample_class(im, num_samples, r, sample_points=None):
     """
     Sample using the %class based method
 
-    :param im:          The image to sample
-    :param num_samples: The number of samples
-    :param r:           The radius of each sample
-    :return:            list[point_x, point_y, r, f1, f2,...,fn]
+    :param im:              The image to sample
+    :param num_samples:     The number of samples
+    :param r:               The radius of each sample
+    :param sample_points    List of points to sample or None if random  sample
+    :return:                list[point_x, point_y, r, f1, f2,...,fn]
     """
     extractor = class_extractor.Extractor()
-    return sample(im=im, extractor=extractor, num_points=num_samples, r=r)
+    return sample(im=im, extractor=extractor, sample_points=sample_points, num_points=num_samples, r=r)
+
+
+class dummy_user_point_msg:
+    def __init__(self, x, y, r):
+        self.x = x
+        self.y = y
+        self.r = r
+
+
+class dummy_image_msg:
+    def __init__(self, img):
+        self.img = img
 
 ###
 #
