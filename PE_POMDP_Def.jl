@@ -341,7 +341,7 @@ function final_guess(final_points_data,belief,num_points)
     return chosen 
 end
 
-function find_next_action(plan,m)
+function find_next_action(u_points, best_points_phi, o_points, f_points, user_mode,model_step)
     # a, info = Base.invokelatest(action_info(planner, initialstate(m), tree_in_info=false))
     # for (a) in stepthrough(m, planner, "a", max_steps=1)
     #     act = a 
@@ -351,10 +351,14 @@ function find_next_action(plan,m)
     # for eval(a) in act
     #     first = a
     # end
-    b = initialstate(m)
-    info = Dict{Symbol, Any}()
-    tree = POMCPTree(plan.problem, b, plan.solver.tree_queries)
-    # a = convert(actiontype(planner.problem), default_action(planner.solver.default_action, planner.problem, b, ex))
-    a = Base.invokelatest(search(plan, b, tree, info))
+    # b = initialstate(m)
+    # info = Dict{Symbol, Any}()
+    # tree = POMCPTree(plan.problem, b, plan.solver.tree_queries)
+    # # a = convert(actiontype(planner.problem), default_action(planner.solver.default_action, planner.problem, b, ex))
+    # a = Base.invokelatest(search(plan, b, tree, info))
+    solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true, estimate_value = FORollout(RandomSolver()))
+    PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step+1)  # Define POMDP
+    planner = solve(solver, PE_fun)
+    a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
     return a
 end

@@ -39,7 +39,7 @@ user_ideal = [0.01,0.5,0.5] #[%building,%road,%other]
 
 #Number of steps before making selection
 num_guess = 15
-MC_runs = 200
+MC_runs = 10
 
 chosen_set = []
 chosen_idx = []

@@ -90,17 +90,10 @@ class PreferenceAlgorithm:
                                                                               self.p_sample, self.suggested)
         # print(list(self.best_points_phi))
 
-        # Define POMDP with new set of points
-        self.POMDP = Main.PE_POMDP(list(self.user_points), self.best_points_phi, self.observe_beta, self.final_beta,
-                                   self.user, 0.99, self.num_guess + 1)
-        # Define solver
-        planner = Main.solve(self.solver, self.POMDP)
-        # Extract expected suggestion
-        # print(Main.initialstate(self.POMDP))
-        # suggest, info = Main.action_info(planner, Main.initialstate(self.POMDP), tree_in_info=False)
-        # suggest = Main.stepthrough(self.POMDP, planner, "a", max_steps=1)
-
-        suggest = Main.find_next_action(planner, self.POMDP)
+        # Generate new suggestion using Julia function call
+        suggest = Main.find_next_action(list(self.user_points), self.best_points_phi, self.observe_beta,
+                                        self.final_beta, self.user, self.num_guess)
+        
         self.suggested.append(suggest)
         self.num_guess -= 1  # Decrement step counter
         print(suggest)

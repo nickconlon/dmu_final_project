@@ -38,9 +38,9 @@ filename_final = "./data/out_images/test_final_image.png" #Final image for savin
 #Choose a user model
 user = user_novice
 user_ideal = [0.5,0.45,0.05] #[%building,%road,%other]
-
+user_data = user_road
 #Number of steps before making selection
-num_guess = 10
+num_guess = 1
 
 function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_mode,guess_steps)
     #Input:
@@ -113,6 +113,8 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
         PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step)  # Define POMDP
         planner = solve(solver, PE_fun)
         a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
+        acting = find_next_action(solver,u_points,best_points_phi,o_points,f_points,user_mode,model_step)
+        print(acting)
         # inchrome(D3Tree(info[:tree], init_expand=3))
         
         # Action response 
@@ -154,10 +156,10 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
 end
 
 
-# belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
+belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
 
 # #Propagate belief onto new image
-# chosen = final_guess(final_points_data,belief,10)
+#  chosen = final_guess(final_points_data,belief,10)
 
 
 # #Visualization and image plotting
