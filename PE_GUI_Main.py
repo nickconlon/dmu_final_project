@@ -1,7 +1,8 @@
-from julia.api import Julia
-
-jl = Julia(compiled_modules=False)
+#from julia.api import Julia
+# jl = Julia()
 from julia import Main
+# import julia as jl
+# jl.install()
 import sys
 import numpy as np
 
@@ -93,7 +94,7 @@ class PreferenceAlgorithm:
         # Generate new suggestion using Julia function call
         suggest = Main.find_next_action(list(self.user_points), self.best_points_phi, self.observe_beta,
                                         self.final_beta, self.user, self.num_guess)
-        
+
         self.suggested.append(suggest)
         self.num_guess -= 1  # Decrement step counter
         print(suggest)
@@ -101,6 +102,7 @@ class PreferenceAlgorithm:
         # If the algorithm chooses to wait, then don't publish anything
         if suggest != "wait":
             ans = self.guess_points[int(suggest)]
+            print("The ans is ", ans)
             # Publish to ROS
         else:
             ans = "wait"
@@ -160,7 +162,6 @@ class PreferenceAlgorithm:
 if __name__ == '__main__':
 
     p = PreferenceAlgorithm()
-
     #
     # Testing image sampling
     #
@@ -179,6 +180,7 @@ if __name__ == '__main__':
             50)
         p.new_user_point(usr_msg)
     a = p.generate_suggestion()
-    print(a)
+    print("Done")
+    # print(a)
     # while not rospy.is_shutdown():
     #     rospy.spin()

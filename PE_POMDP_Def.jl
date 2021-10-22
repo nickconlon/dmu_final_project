@@ -3,14 +3,10 @@ using Base: Float64
 using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPModels
 using BasicPOMCP: POMCPTree, search
-using POMDPModels
-using POMDPModelTools
-using D3Trees
 using Random
 using ParticleFilters, Distributions
 using POMDPPolicies: FunctionPolicy, alphavectors
 using Plots
-using SARSOP: SARSOPSolver
 using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
 using LinearAlgebra
 using Distances
@@ -342,20 +338,7 @@ function final_guess(final_points_data,belief,num_points)
 end
 
 function find_next_action(u_points, best_points_phi, o_points, f_points, user_mode,model_step)
-    # a, info = Base.invokelatest(action_info(planner, initialstate(m), tree_in_info=false))
-    # for (a) in stepthrough(m, planner, "a", max_steps=1)
-    #     act = a 
-    # end
-    # act = stepthrough(m,planner,"a", max_steps = 1)
-    # # println(fieldnames(typeof(act)))
-    # for eval(a) in act
-    #     first = a
-    # end
-    # b = initialstate(m)
-    # info = Dict{Symbol, Any}()
-    # tree = POMCPTree(plan.problem, b, plan.solver.tree_queries)
-    # # a = convert(actiontype(planner.problem), default_action(planner.solver.default_action, planner.problem, b, ex))
-    # a = Base.invokelatest(search(plan, b, tree, info))
+    #Wrapper function to find the next action.
     solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true, estimate_value = FORollout(RandomSolver()))
     PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step+1)  # Define POMDP
     planner = solve(solver, PE_fun)
