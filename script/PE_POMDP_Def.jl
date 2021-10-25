@@ -14,6 +14,11 @@ using Statistics
 using StaticArrays
 using POMDPPolicies
 
+# Pkg.add(["StaticArrays","POMDPs","QuickPOMDPs","POMDPModelTools","POMDPSimulators","QMDP"])
+# Pkg.add(["POMDPModels","BasicPOMCP","Random","ParticleFilters","Distributions"])
+# Pkg.add(["POMDPPolicies","Plots","POMDPs","POMDPModels","POMDPSimulators","BasicPOMCP"])
+# Pkg.add(["LinearAlgebra","Distances","Statistics","StaticArrays","POMDPPolicies"])
+
 # #Include other functions
 include("user_model.jl")
 

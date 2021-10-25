@@ -48,11 +48,12 @@ class PreferenceAlgorithm:
         self.did_we_sample_the_image = False
 
         # Initialize ROS message passing
-        # self.point_sub = rospy.Subscriber("/gui_points",point,user_points)
-        # self.user_obs = rospy.Subscriber("/user_response",Bool,PF_update)
-        # self.seg_image = rospy.Subscriber("/seg_image",??,image_sample)
-        # self.suggest_pub = rospy.Publisher("/suggest",point,queue_size=1)
-        # self.populate_pub = rospy.Publisher("/populate",point)
+        self.point_sub = rospy.Subscriber("/gui_points",point,self.new_user_point)
+        self.user_obs = rospy.Subscriber("/user_response",Bool,self.belief_update)
+        # TODO: self.seg_image = rospy.Subscriber("/seg_image",??,self.sample_image)
+        # TODO: self.populate_sub
+        self.suggest_pub = rospy.Publisher("/suggest",point,queue_size=1)
+        self.populate_pub = rospy.Publisher("/populate",point)
 
         # Call and run Julia functions
         Main.include("PE_POMDP_Def.jl")
@@ -107,7 +108,7 @@ class PreferenceAlgorithm:
             # Publish to ROS
         else:
             ans = "wait"
-        # self.suggest_pub.publish(ans)
+        self.suggest_pub.publish(ans)
         return ans
 
     def belief_update(self, msg):
@@ -155,6 +156,10 @@ class PreferenceAlgorithm:
     def propagate_belief(self):
         """Applies points onto final image. Actual number of points specified in __init__"""
         points = Main.final_guess(self.final_points, self.belief, self.num_final_guess)
+        
+        for point in points:
+
+            # TODO: self.populate_pub
         return points
 
 

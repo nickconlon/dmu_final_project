@@ -1,0 +1,6 @@
+# JULIA:
+Pkg.add(["POMDPs","QuickPOMDPs","POMDPModelTools","POMDPSimulators","QMDP","POMDPModels","BasicPOMCP","Random","ParticleFilters","Distributions","Plots","LinearAlgebra","Distances","Statistics","StaticArrays","POMDPPolicies"])
+
+# PYTHON:
+python3 -m pip install --upgrade pip
+python3 -m pip install cycler kiwisolver matplotlib numpy opencv-python Pillow pyparsing python-dateutil six torch torchaudio torchvision
