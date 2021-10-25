@@ -10,7 +10,7 @@ end
 function update_PF(b::InjectionParticleFilter,m::PE_POMDP,a,o)
     #Updating function for injection particle filter. Returns a new particle filter structure
     P_inject,D_inject = b.P_inject,b.D_inject
-    states = b.states #Assumes constant state/phi distribution
+    states = b.states #Assumes constant state/phi distribution. Could include dynamics 
     if a == "wait"
         weights = [observation_similarity_wait(s_p,o[1]) for s_p in states] #Find relative weighting of observation
     else
@@ -22,15 +22,18 @@ function update_PF(b::InjectionParticleFilter,m::PE_POMDP,a,o)
     D = SetCategorical(acts,weights) #Create associated set of elements
     sampled_states = rand(D,P-P_inject) #Sample from Categorical distribution
     actual_states = [states[parse(Int64,a)] for a in sampled_states] #Extract vector values from sampled states
-    new_states = [rand(D_inject) for a in 1:P_inject] #Sample new states to inject
+    new_states = rand_user_dist(D_inject,P_inject)
+    # new_states = [rand(D_inject) for a in 1:P_inject] #Sample new states to inject
     states = vcat(actual_states,new_states) # Concatenate 
     # states = vcat(rand(D,P-P_inject),rand(D_inject,P_inject))  #Sample new set of particles
     return InjectionParticleFilter(states,P_inject,D_inject)
 end
 
-function init_PF(phi,particles)
-    initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
-    initial_p_set = [rand(initial_belief) for a in 1:particles]
+function init_PF(seg_truth,nn_truth,particles)
+    # initial_belief = Dirichlet(phi) #Initialize belief. TODO: How to take variance into account?
+    # initial_p_set = [rand(initial_belief) for a in 1:particles]
+    initial_belief = user_dist(seg_truth,nn_truth)
+    initial_p_set = rand_user_dist(initial_belief,particles)
     p_belief = InjectionParticleFilter(initial_p_set,Int(round(particles*0.05)),initial_belief)
     return p_belief
 end

@@ -6,7 +6,7 @@ USER_COLOR = "blue"
 SUGGEST_COLOR = "green"
 
 
-function plot_image(image,init_points,user_points, suggestions, denied, fname)
+function plot_image(image,init_points,user_points, suggestions, denied, fname,save)
     img = load(image)
     plot(img)
     if length(init_points)>0
@@ -24,7 +24,9 @@ function plot_image(image,init_points,user_points, suggestions, denied, fname)
     # pt = plot(1:10, 1:10, label="A", legend=false)
     # a.o[:legend](bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
     display(a)
-    savefig(a, fname)
+    if save
+        savefig(a, fname)
+    end
 end
 
 

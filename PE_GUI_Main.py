@@ -80,7 +80,7 @@ class PreferenceAlgorithm:
             # Generate a mean vector to initialize particle belief
             self.phi = [sum(x) / len(x) for x in zip(*self.user_points[:, 3:])]
             # Initialize belief
-            self.belief = Main.init_PF(self.phi, self.num_particles)
+            self.belief = Main.init_PF(self.phi, False, self.num_particles)
 
     def generate_suggestion(self):
         """Function is given a set of user points and generates a suggestion based on the algorithm

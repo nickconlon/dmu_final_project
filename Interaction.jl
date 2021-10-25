@@ -42,7 +42,7 @@ user_data = user_road
 #Number of steps before making selection
 num_guess = 1
 
-function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_mode,guess_steps)
+function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,choice_points,user_mode,guess_steps)
     #Input:
     #   user_data = [p_x,p_y,radius,%building,%road,%other] Full data vector
     #   user_ideal = [%building,%road,%other] Desired feature vector
@@ -92,16 +92,15 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
 
     #Initilize Belief with Particle Filter
     #Create Gaussian Distribution
-    p = 5000 #Number of particles
+    p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
-    p_belief = init_PF(phi,p)
+    p_belief = init_PF(user_ideal_seg,user_ideal_nn,p)
 
     accepted_points = []
     user_points = []
     denied_points = []
     suggested_points = []
     p_belief_history = Array{InjectionParticleFilter}(undef,guess_steps+1)
-
     best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
     for step in 1:guess_steps+1
         #Save particle belief
@@ -113,14 +112,12 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
         PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step)  # Define POMDP
         planner = solve(solver, PE_fun)
         a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-        acting = find_next_action(solver,u_points,best_points_phi,o_points,f_points,user_mode,model_step)
-        print(acting)
         # inchrome(D3Tree(info[:tree], init_expand=3))
         
         # Action response 
         if a == "wait"
             #Randomly sample point based on user model
-            new_user_idx,new_user_point = sample_new_point(choice_beta_values,user_ideal,user_mode,user_points)
+            new_user_idx,new_user_point = sample_new_point(choice_beta_values,user_ideal_seg,user_ideal_nn,user_mode,user_points)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,new_user_point)
             push!(user_points,new_user_idx[1]) #Record keeping
@@ -128,7 +125,7 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
             #Find global point from suggested point
             suggested_idx = best_points_idx[parse(Int64,a)]
             #Randomly sample user's response based on user model
-            response = sample_user_response(s_points[parse(Int64,suggested_idx)],user_ideal,user_mode)
+            response = sample_user_response(s_points[parse(Int64,suggested_idx)],user_ideal_seg,user_ideal_nn,user_mode)
             #Update Particle Belief
             p_belief = update_PF(p_belief,PE_fun,a,response)
             
@@ -142,7 +139,15 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
         end
 
         #Update set of points to iterate through
-        #Sample from Particle filter
+        # #Sample from Particle filter
+        # particles = mean(p_belief.states)
+        # #Replace sampled points
+        # for sample in 1:p_sample
+        #     idx,phi = find_similar_points(s_points,particles,1,suggested_points)
+        #     best_points_idx[sample] = idx[1]
+        #     best_points_phi[sample] = phi[1]
+        # end
+        # Semi random sampling
         particles = rand(p_belief.states,p_sample)
         #Replace sampled points
         for sample in 1:length(particles)
@@ -150,13 +155,11 @@ function _run(user_data,user_ideal,guess_points,final_points,choice_points,user_
             best_points_idx[sample] = idx[1]
             best_points_phi[sample] = phi[1]
         end
-        
     end
     return p_belief,user_points,accepted_points,denied_points,p_belief_history
 end
 
-
-belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
+# belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,false,points_data,final_points_data,random_data,user,num_guess)
 
 # #Propagate belief onto new image
 #  chosen = final_guess(final_points_data,belief,10)

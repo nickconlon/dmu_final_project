@@ -31,36 +31,45 @@ user_data = user_road_edges
 filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/RoadEdge_final.png"
 brier_filename = "./data/out_images/Brier_Score_Road_Edge_1mSim.png" #Final image for saving
-plot_title = "Brier Score for Road Edge Use Case"
+plot_title = "Brier Score for Road Use Case"
+save_image = false # should images be saved
 #Choose a user model
 user = user_expert
 user_label = "Expert"
-user_ideal = [0.01,0.5,0.5] #[%building,%road,%other]
-
+user_ideal_seg = [0.01,0.5,0.5] #[%building,%road,%other]
+user_ideal_nn = false 
+# If nn segmentation is required, calculate statistics in the following format
+# Upper bounds could also be added by expanding feature n vector with max bound. Requires modification of user_dist in user_model.jl
+    # user_ideal_nn = [[f1_mean,f1_std],[f2_mean,f2_std],....]
 #Number of steps before making selection
 num_guess = 15
-MC_runs = 10
+MC_runs = 100
 
 chosen_set = []
 chosen_idx = []
 avg_belief = []
 std_belief = []
 
+#Consider nn feature vector case
+if typeof(user_ideal_nn) == Bool
+    user_ideal = user_ideal_seg
+else
+    ideal_idea = vcat(user_ideal_seg,user_ideal_nn)
+end
+
 for u in 1:2
     brier_diff = Array{Float64}(undef,MC_runs,num_guess+1)
     if u == 2
         local user = user_novice
         local user_label = "Novice POMDP"
-        local user_dist = Dirichlet(user_ideal*user.certainty)
     else
         local user = user_expert
         local user_label = "Expert POMDP"
-        local user_dist = Dirichlet(user_ideal*user.certainty)
     end
     for i in 1:MC_runs
         #Run Planner to find belief
         local belief,user_points,accepted_points,denied_points,hist =
-            _run(user_data,user_ideal,points_data,final_points_data,random_data,user,num_guess)
+            _run(user_data,user_ideal_seg,user_ideal_nn,points_data,final_points_data,random_data,user,num_guess)
         #Propagate belief onto new image
         local chosen = final_guess(final_points_data,belief,num_guess)
 
@@ -97,7 +106,7 @@ p_x,p_y = extract_xy(chosen_idx,final_points_data)
 
 #Initiate User Selection for EXPERT
 user = user_expert
-user_avg_belief_exp = user_select_MC(user_set_betas,points_data,user,user_ideal,MC_runs,num_guess)
+user_avg_belief_exp = user_select_MC(user_set_betas,points_data,user,user_ideal_seg,user_ideal_nn,MC_runs,num_guess)
 #Sum brier scores
 user_brier_plot_exp = brier_crunch(user_avg_belief_exp,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
@@ -106,7 +115,7 @@ p = plot!(x,user_brier_plot_exp[1,length(user_set_betas)+1:end],ribbon = user_br
 
 #Initiate User Selection for NOVICE
 user = user_novice
-user_avg_belief_nov = user_select_MC(user_set_betas,points_data,user,user_ideal,MC_runs,num_guess)
+user_avg_belief_nov = user_select_MC(user_set_betas,points_data,user,user_ideal_seg,user_ideal_nn,MC_runs,num_guess)
 #Sum brier scores
 user_brier_plot_nov = brier_crunch(user_avg_belief_nov,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
@@ -119,12 +128,13 @@ title!(plot_title)
 xlabel!("Observation")
 ylabel!("Brier Score")
 display(p)
-savefig(p, brier_filename)
-
+if save_image
+    savefig(p, brier_filename)
+end
 #Plot all points
 guess_image = "./images/Image1_raw.png"
 final_image = "./images/neighborhood_image.jpg"
-plot_image(final_image,[],[],[p_y,p_x],[],filename_final)
+plot_image(final_image,[],[],[p_y,p_x],[],filename_final,save_image)
 
 # #Finding means
 # #Compare chosen points with sampled ideal
