@@ -8,9 +8,9 @@ import numpy as np
 
 sys.path.insert(0, './python_utils/')
 import python_utils.sample_image as image_sampling
-
-
 import rospy
+from point_prediction.msg import point_pixel #message with x, y, r, all int16
+from std_msgs.msg import int16 as int16_msg, Bool as Bool_msg
 
 
 class processing_type:
@@ -48,12 +48,14 @@ class PreferenceAlgorithm:
         self.did_we_sample_the_image = False
 
         # Initialize ROS message passing
-        self.point_sub = rospy.Subscriber("/gui_points",point,self.new_user_point)
-        self.user_obs = rospy.Subscriber("/user_response",Bool,self.belief_update)
+        self.point_sub = rospy.Subscriber("/gui_points",point_pixel,self.new_user_point)
+        self.user_obs = rospy.Subscriber("/user_response",Bool_msg,self.belief_update)
+        self.rad_sub = rospy.Subscriber("/rad", int16_msg, self.update_rad))
         # TODO: self.seg_image = rospy.Subscriber("/seg_image",??,self.sample_image)
-        # TODO: self.populate_sub
-        self.suggest_pub = rospy.Publisher("/suggest",point,queue_size=1)
-        self.populate_pub = rospy.Publisher("/populate",point)
+
+        self.populate_sub = rosp y.Subscriber("/populate_request", self.propagate_belief)
+        self.suggest_pub = rospy.Publisher("/suggest_points",point_pixel,queue_size=1)
+        self.populate_pub = rospy.Publisher("/populate_points",point_pixel)
 
         # Call and run Julia functions
         Main.include("PE_POMDP_Def.jl")
@@ -66,8 +68,7 @@ class PreferenceAlgorithm:
     def new_user_point(self, msg):
         """Function adds new user points to a list.
         Will keep adding items to a list until full number of guesses has been reached"""
-        self.user_points_msgs.append(msg)
-
+        
         # the case that we received the image before the first user point (most likely)
         if self.current_image is not None and self.did_we_sample_the_image is False:
             self.sample_radius = msg.r
@@ -105,10 +106,9 @@ class PreferenceAlgorithm:
         if suggest != "wait":
             ans = self.guess_points[int(suggest)]
             print("The ans is ", ans)
-            # Publish to ROS
         else:
             ans = "wait"
-        self.suggest_pub.publish(ans)
+        self.suggest_pub.publish(ans) # TODO: match the message type
         return ans
 
     def belief_update(self, msg):
@@ -153,13 +153,13 @@ class PreferenceAlgorithm:
             self.user_points = image_sampling.sample_class(im=self.current_image, sample_points=tmp_pts,
                                                            num_samples=len(tmp_pts), r=self.sample_radius)
 
-    def propagate_belief(self):
+    def propagate_belief(self, msg):
         """Applies points onto final image. Actual number of points specified in __init__"""
         points = Main.final_guess(self.final_points, self.belief, self.num_final_guess)
         
         for point in points:
 
-            # TODO: self.populate_pub
+            # TODO: self.populate_pub # TODO: Match message type
         return points
 
 
