@@ -16,6 +16,7 @@ from torchvision.io import read_image
 class Autoencoder(nn.Module):
     def __init__(self):
         super(Autoencoder, self).__init__()
+        self.num_features = 16
         # encoder
         self.enc1 = nn.Linear(in_features=30000, out_features=512)
         self.enc2 = nn.Linear(in_features=512, out_features=256)
@@ -23,9 +24,11 @@ class Autoencoder(nn.Module):
         self.enc4 = nn.Linear(in_features=128, out_features=64)
         self.enc5 = nn.Linear(in_features=64, out_features=32)
         self.enc6 = nn.Linear(in_features=32, out_features=16)
-        #self.enc7 = nn.Linear(in_features=16, out_features=4)
+        if self.num_features == 3:
+            self.enc7 = nn.Linear(in_features=16, out_features=3)
         # decoder
-        #self.dec0 = nn.Linear(in_features=4, out_features=16)
+        if self.num_features == 3:
+            self.dec0 = nn.Linear(in_features=3, out_features=16)
         self.dec1 = nn.Linear(in_features=16, out_features=32)
         self.dec2 = nn.Linear(in_features=32, out_features=64)
         self.dec3 = nn.Linear(in_features=64, out_features=128)
@@ -40,11 +43,13 @@ class Autoencoder(nn.Module):
         x = F.relu(self.enc4(x))
         x = F.relu(self.enc5(x))
         x = F.relu(self.enc6(x))
-        #x = F.relu(self.enc7(x))
+        if self.num_features == 3:
+            x = F.relu(self.enc7(x))
         return x
 
     def decode(self, x):
-        #x = F.relu(self.dec0(x))
+        if self.num_features == 3:
+            x = F.relu(self.dec0(x))
         x = F.relu(self.dec1(x))
         x = F.relu(self.dec2(x))
         x = F.relu(self.dec3(x))
@@ -77,7 +82,7 @@ class Extractor:
         self.model = new_model.to(self.device)
 
        #TODO latent_space_size
-        self._num_features = 16
+        self._num_features = self.model.num_features
         self._labels = ["f" + str(x) for x in np.arange(1, self._num_features+1)]
         self._type = "ae"+str(len(self._labels))
 
@@ -98,7 +103,7 @@ class Extractor:
 
         features = features.cpu().detach().numpy()[0]
         # normalize the features
-        return features/np.sum(features)
+        return features#/np.sum(features)
 
 #############################
 #

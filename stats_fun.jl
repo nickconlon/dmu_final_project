@@ -26,7 +26,7 @@ function user_select_MC(user_set_betas,guessing_points,user,user_ideal_seg,user_
     # Phi_estimated is calculated as the mean of all selected points including the initial set
     #Generate Average Set of Points for User as comparison
     user_avg_belief = Array{Float64}(undef,MC_runs,num_guess+1+length(user_set_betas))
-    beta_values_select = [guessing_points[i][4:6] for i in 1:length(guessing_points)]
+    beta_values_select = [guessing_points[i][4:end] for i in 1:length(guessing_points)]
     #Code for taking average of initial set of points
     # mean_user_vals = [mean([user_set_betas[a][1] for a in 1:length(user_set_betas)]),
     #                 mean([user_set_betas[a][2] for a in 1:length(user_set_betas)]),
@@ -42,7 +42,7 @@ function user_select_MC(user_set_betas,guessing_points,user,user_ideal_seg,user_
     if typeof(user_ideal_nn) == Bool
         user_ideal_vec = user_ideal_seg
     else
-        ideal_idea_vec = vcat(user_ideal_seg,user_ideal_nn)
+        user_ideal_vec = vcat(user_ideal_seg,[a[1] for a in user_ideal_nn])
     end
     # Account for initial set of points
     for p in 1:length(user_set_betas)

@@ -13,21 +13,21 @@ include("plot_image.jl")
 include("user_model.jl")
 include("PE_POMDP_Def.jl")
 include("ParticleFilter_Def.jl")
-
+include("all_data.jl")
 #Load point data
-random_data = read_data("./data/random_data.csv")
-random_data_300 = read_data("./data/random_data_300.csv")
-neighborhood_data = read_data("./data/neighborhood_350.csv")
+#random_data = read_data("./data/random_data.csv")
+#random_data_300 = read_data("./data/random_data_300.csv")
+#neighborhood_data = read_data("./data/neighborhood_350.csv")
 
 #User Data
-user_frontdoor = read_data("./data/user_frontdoor.csv")
-user_backdoor = read_data("./data/user_backdoor.csv")
-user_building = read_data("./data/user_building.csv")
-user_road = read_data("./data/user_road.csv")
-test_points = read_data("./data/user_test.csv")
-user_road_edges = read_data("./data/user_roadedges.csv")
-points_data = random_data_300 #* (100/30)
-final_points_data = neighborhood_data #
+#user_frontdoor = read_data("./data/user_frontdoor.csv")
+#user_backdoor = read_data("./data/user_backdoor.csv")
+#user_building = read_data("./data/user_building.csv")
+#user_road = read_data("./data/user_road.csv")
+#test_points = read_data("./data/user_test.csv")
+#user_road_edges = read_data("./data/user_roadedges.csv")
+#points_data = random_data_300 #* (100/30)
+#final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
@@ -36,9 +36,11 @@ filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/test_final_image.png" #Final image for saving
 
 #Choose a user model
-user = user_novice
-user_ideal = [0.5,0.45,0.05] #[%building,%road,%other]
-user_data = user_road
+user = user_expert
+user_ideal_seg = [0.00000001, 0.0000001, 0.9]
+user_ideal_nn = [[0.08346421148967743, 0.04177651971949443], [0.6093180656433106, 0.07183852277137336], [0.5235927999019623, 0.4045040188454945], [1e-05, 1e-05], [0.01119926002216339, 0.005628560484132032], [1e-05, 1e-05], [1e-05, 1e-05], [0.6368522535400392, 1.2736845070800782], [1e-05, 1e-05], [1e-05, 1e-05], [1.2064823041992185, 2.412944608398438], [0.46875049322843554, 0.7340491610814214], [1e-05, 1e-05], [1e-05, 1e-05], [0.618419075012207, 0.2973534003146158], [0.9566195964813232, 1.6243710679662033]]
+
+user_data = user_other
 #Number of steps before making selection
 num_guess = 1
 

@@ -31,7 +31,7 @@ function sample_new_point(points,ideal_seg::Vector{Float64},ideal_nn,user,bad_po
              #Create distribution     
             choice_dist = user_dist(ideal_seg*user.certainty,ideal_nn)
             #Sample from distribution
-            choice_phi = rand_user_dist(choice_dist,1)
+            choice_phi = rand_user_dist(choice_dist,1)[1]
         end
         #Find closest point
         new_point_idx,new_point_phi = find_similar_points(points,choice_phi,1,bad_points)
@@ -63,7 +63,7 @@ function sample_user_response(point,ideal_seg,ideal_nn,user)
              #Create distribution     
             choice_dist = user_dist(ideal_seg*user.certainty,ideal_nn)
             #Sample from distribution
-            choice_phi = rand_user_dist(choice_dist,1)
+            choice_phi = rand_user_dist(choice_dist,1)[1]
         end
     #Compare point similarity
     sim = similarity(point,choice_phi)
@@ -102,6 +102,8 @@ end
 
 function rand_user_dist(u_dist,n)
     """Function takes in a vector of distributions and generates n respective samples"""
+    samples = zeros(n)
+
     for i in 1:length(u_dist)
         d = u_dist[i] # Extract distribution
         # Handle Dirichlet distrubtion

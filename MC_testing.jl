@@ -9,35 +9,36 @@ include("PE_POMDP_Def.jl")
 include("ParticleFilter_Def.jl")
 include("Interaction.jl")
 include("stats_fun.jl")
-
+include("all_data.jl")
 #Load point data
-random_data = read_data("./data/random_data.csv")
-random_data_300 = read_data("./data/random_data_300.csv")
-neighborhood_data = read_data("./data/neighborhood_350.csv")
+#random_data = read_data("./data/random_data.csv")
+#random_data_300 = read_data("./data/random_data_300.csv")
+#neighborhood_data = read_data("./data/neighborhood_350.csv")
 
 #User Data
-user_frontdoor = read_data("./data/user_frontdoor.csv")
-user_backdoor = read_data("./data/user_backdoor.csv")
-user_building = read_data("./data/user_building.csv")
-user_road = read_data("./data/user_road.csv")
-test_points = read_data("./data/user_test.csv")
-user_road_edges = read_data("./data/user_roadedges.csv")
-points_data = random_data_300 #* (100/30)
-final_points_data = neighborhood_data #
+#user_frontdoor = read_data("./data/user_frontdoor.csv")
+#user_backdoor = read_data("./data/user_backdoor.csv")
+#user_building = read_data("./data/user_building.csv")
+#user_road = read_data("./data/user_road.csv")
+#test_points = read_data("./data/user_test.csv")
+#user_road_edges = read_data("./data/user_roadedges.csv")
+#points_data = random_data_300 #* (100/30)
+#final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-user_data = user_road_edges
+user_data = user_other
 filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/RoadEdge_final.png"
 brier_filename = "./data/out_images/Brier_Score_Road_Edge_1mSim.png" #Final image for saving
-plot_title = "Brier Score for Road Use Case"
+plot_title = "Mean Squared Error for Road Use Case"
 save_image = false # should images be saved
 #Choose a user model
 user = user_expert
 user_label = "Expert"
-user_ideal_seg = [0.01,0.5,0.5] #[%building,%road,%other]
-user_ideal_nn = false 
+user_ideal_seg = [0.00000001, 0.0000001, 0.9]
+user_ideal_nn = [[0.08346421148967743, 0.04177651971949443], [0.6093180656433106, 0.07183852277137336], [0.5235927999019623, 0.4045040188454945], [1e-05, 1e-05], [0.01119926002216339, 0.005628560484132032], [1e-05, 1e-05], [1e-05, 1e-05], [0.6368522535400392, 1.2736845070800782], [1e-05, 1e-05], [1e-05, 1e-05], [1.2064823041992185, 2.412944608398438], [0.46875049322843554, 0.7340491610814214], [1e-05, 1e-05], [1e-05, 1e-05], [0.618419075012207, 0.2973534003146158], [0.9566195964813232, 1.6243710679662033]]
+
 # If nn segmentation is required, calculate statistics in the following format
 # Upper bounds could also be added by expanding feature n vector with max bound. Requires modification of user_dist in user_model.jl
     # user_ideal_nn = [[f1_mean,f1_std],[f2_mean,f2_std],....]
@@ -54,7 +55,7 @@ std_belief = []
 if typeof(user_ideal_nn) == Bool
     user_ideal = user_ideal_seg
 else
-    ideal_idea = vcat(user_ideal_seg,user_ideal_nn)
+    user_ideal = vcat(user_ideal_seg,[a[1] for a in user_ideal_nn])
 end
 
 for u in 1:2
@@ -111,7 +112,7 @@ user_avg_belief_exp = user_select_MC(user_set_betas,points_data,user,user_ideal_
 user_brier_plot_exp = brier_crunch(user_avg_belief_exp,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
 x = range(0,num_guess+1,length = num_guess+1)
-p = plot!(x,user_brier_plot_exp[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_exp[2,length(user_set_betas)+1:end],label =:"Expert Average")
+#p = plot!(x,user_brier_plot_exp[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_exp[2,length(user_set_betas)+1:end],label =:"Expert Average")
 
 #Initiate User Selection for NOVICE
 user = user_novice
@@ -120,13 +121,13 @@ user_avg_belief_nov = user_select_MC(user_set_betas,points_data,user,user_ideal_
 user_brier_plot_nov = brier_crunch(user_avg_belief_nov,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
 x = range(0,num_guess+1,length = num_guess+1)
-p = plot!(x,user_brier_plot_nov[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_nov[2,length(user_set_betas)+1:end],label =:"Novice Average")
+#p = plot!(x,user_brier_plot_nov[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_nov[2,length(user_set_betas)+1:end],label =:"Novice Average")
 
 #Greedy Policy
 
 title!(plot_title)
 xlabel!("Observation")
-ylabel!("Brier Score")
+ylabel!("Mean Squared Error")
 display(p)
 if save_image
     savefig(p, brier_filename)
