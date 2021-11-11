@@ -129,15 +129,19 @@ class AE_Data(Dataset):
         self.imgs = []
         self.transform = transform
         self.target_transform = target_transform
-        for img_num in range(num_imgs):
-            img_path = dataset_path+'/img_'+str(img_start_idx+img_num)+'.jpg'
-            self.imgs.append(read_image(img_path))
+        self.dataset_path = dataset_path
+        self.img_start_idx = img_start_idx
+        self.num_imgs = num_imgs
+        #for img_num in range(num_imgs):
+        #    img_path = dataset_path+'/img_'+str(img_start_idx+img_num)+'.jpg'
+        #    self.imgs.append(read_image(img_path))
 
     def __len__(self):
-        return len(self.imgs)
+        return self.num_imgs
 
     def __getitem__(self, idx):
-        image = self.imgs[idx]
+        img_path = self.dataset_path + '/img_' + str(self.img_start_idx + idx) + '.jpg'
+        image = read_image(img_path)
         label = str(idx)
         if self.transform:
             image = self.transform(image)
