@@ -17,6 +17,8 @@ class Extractor:
             for y in range(2 * r):
                 rr = np.linalg.norm(np.array([r, r], dtype=np.uint8) - np.array([x, y]))
                 if rr <= r:
+                    if x >= len(image_data[0]) or y >= len(image_data):
+                        continue
                     c = image_data[y, x]  # opencv uses BGR convention!
                     if c[0] >= 200:  # Blue
                         classes[1] += 1
