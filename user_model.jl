@@ -80,9 +80,10 @@ function sample_user_response(point,ideal_seg,ideal_nn,user)
     return rand(answer_dist)
 end
 
-function user_dist(seg_ideal::Vector{Float64},nn_ideal::Vector{Vector{Float64}})
+function user_dist(seg_ideal::Vector{Float64},nn_ideal)
     """This function takes in the ideal user vectors, creates a distribution and outputs a vector of distributions.
     Used at Particle filter initialization and for user response generation"""
+        # println(seg_ideal)
     seg_dist = Dirichlet(seg_ideal)
     # Create initial array
     distributions = Array{Any}(undef,length(nn_ideal)+1)
@@ -107,7 +108,7 @@ function rand_user_dist(u_dist,n)
     for i in 1:length(u_dist)
         d = u_dist[i] # Extract distribution
         # Handle Dirichlet distrubtion
-        if typeof(d) == Dirichlet{Float64, Vector{Float64}, Float64}
+        if typeof(d) == Dirichlet{Float64}
             samples = [rand(d) for s in 1:n]
         # Handle other normal distrubtions
         else
@@ -119,7 +120,7 @@ function rand_user_dist(u_dist,n)
     return samples
 end
 
-function rand_user_dist(u_dist::Dirichlet{Float64, Vector{Float64}},n)
+function rand_user_dist(u_dist::Dirichlet{Float64},n)
     """Function takes in a Dirichlet distributions and generates n respective samples.
         Companion method for when nn_architecture is not used"""
     samples = [rand(u_dist) for s in 1:n]

@@ -44,6 +44,11 @@ user_data = user_other
 #Number of steps before making selection
 num_guess = 1
 
+struct history
+    p_belief::Vector{InjectionParticleFilter}
+    final_points::Matrix{String}
+end
+
 function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,choice_points,user_mode,guess_steps)
     #Input:
     #   user_data = [p_x,p_y,radius,%building,%road,%other] Full data vector
@@ -74,17 +79,20 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 
     #Get statistics on initial set of user points
-    phi = []
-    cov = []
+    phi = Array{Float64}(undef,length(u_points[1])-3)
+    cov = Array{Float64}(undef,length(u_points[1])-3)
+    combined_vec = Matrix{Float64}(undef,length(u_points[1])-3,2)
+    data_vec = Array{Array{Float64}}(undef,length(u_points[1])-3)
     for i in 4:length(u_points[1])
         ave_i = mean([u_points[a][i] for a in 1:length(u_points)])
-        push!(phi, ave_i)
+        phi[i-3] = ave_i
         cov_i = std([u_points[a][i] for a in 1:length(u_points)])
-        push!(cov, cov_i)
+        cov[i-3] = cov_i
+        data_vec[i-3] = [ave_i,cov_i]
     end
 
-    phi = phi/norm(phi)  # Normalize
-    cov = cov/norm(cov)
+    phi[1:3] = phi[1:3]/norm(phi[1:3])  # Normalize
+    # cov = cov/norm(cov)
     #Any zero values must be made non-zero to make phi a positive vector in Dirichlet Dist.
     for a in 1:length(phi)
         if phi[a] == 0.0
@@ -96,17 +104,21 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     #Create Gaussian Distribution
     p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
-    p_belief = init_PF(user_ideal_seg,user_ideal_nn,p)
+    # println(phi)
+    p_belief = init_PF(phi[1:3],data_vec[4:end],p)
 
     accepted_points = []
     user_points = []
     denied_points = []
     suggested_points = []
+    
     p_belief_history = Array{InjectionParticleFilter}(undef,guess_steps+1)
+    guess_points = Array{String}(undef,5,guess_steps+1)
+    hist = history(p_belief_history,guess_points)
     best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
     for step in 1:guess_steps+1
         #Save particle belief
-        p_belief_history[step] = p_belief
+        hist.p_belief[step] = p_belief
         #Initialize POMDP with new action space: Figure out best action
         #   Input into POMDP is only the beta values
         #   Output is the index of the suggested value or "wait"
@@ -157,8 +169,12 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
             best_points_idx[sample] = idx[1]
             best_points_phi[sample] = phi[1]
         end
+
+        # Propagate set of final points for record keeping
+        chosen = final_guess(final_points,p_belief,5)
+        hist.final_points[:,step] = chosen
     end
-    return p_belief,user_points,accepted_points,denied_points,p_belief_history
+    return p_belief,user_points,accepted_points,denied_points,hist
 end
 
 # belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,false,points_data,final_points_data,random_data,user,num_guess)

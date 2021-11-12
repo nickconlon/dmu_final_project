@@ -45,7 +45,11 @@ end
 
 function similarity(x, y)
     # Similarity metric calculator
-    return 1-cosine_dist(x, y)
+    if length(x)!= length(y)
+        return 1-cosine_dist(x[1:3],y[1:3])
+    else
+        return 1-cosine_dist(x, y)
+    end
 end
 
 function sample_initial_state(m)
@@ -124,7 +128,7 @@ function POMDPs.reward(pomdp::PE_POMDP,s,a)
     r = 0.0
     if s.step <= pomdp.guess_steps+1
         if a == "wait"
-            r = -1.2  #Small negative for suggesting?
+            r = -1.1  #Small negative for suggesting?
         else 
             r = -1.0
         end            
@@ -164,15 +168,16 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
         return SparseCat(acts, p_a)
         # distribution over all operator add points
     else
-    beta_values = m.suggest_points
+        beta_values = m.suggest_points
         # agent is suggesting 'a'
         # operator likes s.phi
         # points already accepted should get denied
         # recompute ParticleCollection
         b = beta_values[parse(Int64,a)]#(x,y,z)
         sim_metric = similarity(s.phi, b)
-        sim_metric = sim_metric*0.6 #Semi-arbitrary weighting
+        sim_metric = sim_metric*0.8 #Semi-arbitrary weighting
         random_guess = 1/length(m.suggest_points)
+        # random_guess = 1-sim_metric
         acc = m.user.accuracy
         av = m.user.availability
         # sim_metric = sim_metric/norm(sim_metric)

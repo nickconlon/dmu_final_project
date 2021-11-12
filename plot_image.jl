@@ -8,7 +8,7 @@ SUGGEST_COLOR = "green"
 
 function plot_image(image,init_points,user_points, suggestions, denied, fname,save)
     img = load(image)
-    legend = true
+    legend = false
     plot(img)
     if length(init_points)>0
         scatter!(init_points[1], init_points[2], color=USER_INIT,markersize = 5, label="init",legend =legend)
@@ -28,6 +28,7 @@ function plot_image(image,init_points,user_points, suggestions, denied, fname,sa
     if save
         savefig(a, fname)
     end
+    return a
 end
 
 

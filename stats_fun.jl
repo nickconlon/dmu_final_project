@@ -5,7 +5,7 @@ function brier_crunch(brier_diff,MC_runs,num_obs)
     #Function takes in an array with row for each MC_run and column is the number of observations
     #Returns an array with mean and std deviation for each observation
     brier_score = Array{Float64}(undef,MC_runs,num_obs+1)
-    brier_plot = Array{Float32}(undef,2,num_obs+1)
+    brier_plot = Array{Float64}(undef,2,num_obs+1)
     for r in 1:MC_runs
         for g in 1:num_obs+1
             #Apply summation
@@ -20,6 +20,15 @@ function brier_crunch(brier_diff,MC_runs,num_obs)
     return brier_plot
 end
 
+function acc_crunch(acc_hist,MC_runs,num_obs)
+    """Function will parse and calculate sequential accuracy and standard deviation over time"""
+    acc_plot = Array{Float64}(undef,2,num_obs)
+    for g in 1:num_obs
+        acc_plot[1,g] = mean(acc_hist[:,g])
+        acc_plot[2,g] = std(acc_hist[:,g])
+    end
+    return acc_plot
+end
 
 function user_select_MC(user_set_betas,guessing_points,user,user_ideal_seg,user_ideal_nn,MC_runs,num_guess)
     #Function to simulate the user automatically selecting points. 
@@ -62,4 +71,53 @@ function user_select_MC(user_set_betas,guessing_points,user,user_ideal_seg,user_
     end
 
     return user_avg_belief
+end
+
+function find_categories(chosen_idx)
+    """Function will sort through the chosen truth data and categorize it into necessary bins"""
+    chosen_data = [parse(Int64,i) for i in chosen_idx]
+    score = zeros(8) # Init array
+    for i in chosen_data
+        if i<= 5 # frontdoor case
+            score[1] += 1
+        elseif i<=10 # road edges
+            score[2] += 1
+        elseif i<=15 # road_intersection
+            score[3] += 1
+        elseif i<=21 # corners
+            score[4] += 1
+        elseif i<=26 # backdoor
+            score[5] += 1
+        elseif i<= 31 # road
+            score[6] += 1
+        elseif i<= 36
+            score[7] += 1
+        else
+            score[8] += 1
+        end
+    end
+    return score
+
+end
+
+function accuracy_score(chosen_idx,truth_data,secondary_data)
+    """Function will take in a set of chosen points, truth vector, and secondary vector.
+    Will output a single value"""
+    chosen_data = [parse(Int64,i) for i in chosen_idx]
+    correct = 0.0
+    wrong_data = 0.0
+    # Calculate accuracy score
+    for i in chosen_data
+        if i in truth_data # Full credit
+            correct += 1
+        elseif i in secondary_data # Provide partial credit
+            correct += 0.5
+        else
+            wrong_data += 1
+        end
+    end
+    score = correct/(length(chosen_data))
+
+    return score
+
 end
