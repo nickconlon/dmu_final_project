@@ -1,17 +1,11 @@
-using StaticArrays: beta
-using Base: Float64
-using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
-using POMDPModels
-using BasicPOMCP: POMCPTree, search
+using POMDPs, POMDPModelTools
+using BasicPOMCP
 using Random
 using ParticleFilters, Distributions
-using POMDPPolicies: FunctionPolicy, alphavectors
-using Plots
-using POMDPs, POMDPModels, POMDPSimulators, BasicPOMCP
+# using Plots
 using LinearAlgebra
 using Distances
 using Statistics
-using StaticArrays
 using POMDPPolicies
 
 # #Include other functions

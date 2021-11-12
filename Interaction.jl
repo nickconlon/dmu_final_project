@@ -159,7 +159,7 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     return p_belief,user_points,accepted_points,denied_points,p_belief_history
 end
 
-# belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,false,points_data,final_points_data,random_data,user,num_guess)
+belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,false,points_data,final_points_data,random_data,user,num_guess)
 
 # #Propagate belief onto new image
 #  chosen = final_guess(final_points_data,belief,10)

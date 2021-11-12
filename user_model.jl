@@ -117,7 +117,7 @@ function rand_user_dist(u_dist,n)
     return samples
 end
 
-function rand_user_dist(u_dist::Dirichlet{Float64, Vector{Float64}},n)
+function rand_user_dist(u_dist::Dirichlet{Float64},n)
     """Function takes in a Dirichlet distributions and generates n respective samples.
         Companion method for when nn_architecture is not used"""
     samples = [rand(u_dist) for s in 1:n]
