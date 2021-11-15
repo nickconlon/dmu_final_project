@@ -63,11 +63,6 @@ def sample(im, extractor, sample_points=None, num_points=50, r=20):
     w = im.shape[1]
     h = im.shape[0]
 
-    # The masking stuff is just to make the sample a circle with radius r
-    mask = np.zeros([2*r, 2*r], dtype=np.uint8)
-    mask = cv.circle(mask, (int(mask.shape[1]/2), int(mask.shape[0]/2)+1), r+1, color=(255, 255, 255), thickness=-1)
-    mask[mask == 0] = 1
-
     points = []
     for i in range(num_points):
         if sample_points is not None:
@@ -75,17 +70,9 @@ def sample(im, extractor, sample_points=None, num_points=50, r=20):
         else:
             pt = np.array([np.random.randint(r, w-r), np.random.randint(r, h-r)])
 
-        t = im[pt[1]-r:pt[1]+r, pt[0]-r:pt[0]+r]
-        #plt.imshow(t)
-        #plt.show()
-        try:
-            masked_img = cv.bitwise_or(t, t, mask=mask)
-        except:
-            print("ERROR: pt={}, r={}".format(pt, r))
-            #continue
-            masked_img = t
+        pixel_patch = im[pt[1]-r:pt[1]+r, pt[0]-r:pt[0]+r]
 
-        class_prob = extractor.extract(masked_img, r)
+        class_prob = extractor.extract(pixel_patch, r)
         points.append([pt[0], pt[1], r, *class_prob])
 
     return np.array(points)

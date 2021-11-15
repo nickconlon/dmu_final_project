@@ -18,29 +18,20 @@ class Autoencoder(nn.Module):
     def __init__(self):
         super(Autoencoder, self).__init__()
         # encoder
-        self.enc1 = nn.Linear(in_features=30000, out_features=16384)
-        self.enc2 = nn.Linear(in_features=16384, out_features=8192)
-        self.enc3 = nn.Linear(in_features=8192, out_features=4096)
-        self.enc4 = nn.Linear(in_features=4096, out_features=2048)
-        self.enc5 = nn.Linear(in_features=2048, out_features=1024)
-        self.enc6 = nn.Linear(in_features=1024, out_features=512)
-        self.enc7 = nn.Linear(in_features=512, out_features=256)
-        self.enc8 = nn.Linear(in_features=256, out_features=128)
-        self.enc9 = nn.Linear(in_features=128, out_features=64)
-        self.enc10 = nn.Linear(in_features=64, out_features=32)
-        self.enc11 = nn.Linear(in_features=32, out_features=16)
+        self.num_features = 16
+        self.enc1 = nn.Linear(in_features=30000, out_features=512)
+        self.enc2 = nn.Linear(in_features=512, out_features=256)
+        self.enc3 = nn.Linear(in_features=256, out_features=128)
+        self.enc4 = nn.Linear(in_features=128, out_features=64)
+        self.enc5 = nn.Linear(in_features=64, out_features=32)
+        self.enc6 = nn.Linear(in_features=32, out_features=16)
 
         self.dec1 = nn.Linear(in_features=16, out_features=32)
         self.dec2 = nn.Linear(in_features=32, out_features=64)
         self.dec3 = nn.Linear(in_features=64, out_features=128)
         self.dec4 = nn.Linear(in_features=128, out_features=256)
         self.dec5 = nn.Linear(in_features=256, out_features=512)
-        self.dec6 = nn.Linear(in_features=512, out_features=1024)
-        self.dec7 = nn.Linear(in_features=1024, out_features=2048)
-        self.dec8 = nn.Linear(in_features=2048, out_features=4096)
-        self.dec9 = nn.Linear(in_features=4096, out_features=8192)
-        self.dec10 = nn.Linear(in_features=8192, out_features=16384)
-        self.dec11 = nn.Linear(in_features=16384, out_features=30000)
+        self.dec6 = nn.Linear(in_features=512, out_features=30000)
 
     def encode(self, x):
         x = F.relu(self.enc1(x))
@@ -49,11 +40,6 @@ class Autoencoder(nn.Module):
         x = F.relu(self.enc4(x))
         x = F.relu(self.enc5(x))
         x = F.relu(self.enc6(x))
-        x = F.relu(self.enc7(x))
-        x = F.relu(self.enc8(x))
-        x = F.relu(self.enc9(x))
-        x = F.relu(self.enc10(x))
-        x = F.relu(self.enc11(x))
         return x
 
     def decode(self, x):
@@ -63,11 +49,6 @@ class Autoencoder(nn.Module):
         x = F.relu(self.dec4(x))
         x = F.relu(self.dec5(x))
         x = F.relu(self.dec6(x))
-        x = F.relu(self.dec7(x))
-        x = F.relu(self.dec8(x))
-        x = F.relu(self.dec9(x))
-        x = F.relu(self.dec10(x))
-        x = F.relu(self.dec11(x))
         return x
 
     def forward(self, x):
@@ -77,6 +58,9 @@ class Autoencoder(nn.Module):
 
 
 class Extractor:
+    MODEL_LOAD_PATH = "./models/pomdp_autoencoder_sz16.pth"
+    MODEL_SAVE_PATH = "./models/pomdp_autoencoder_new.pth"
+    MODEL_DEVICE = "cpu"
     def __init__(self, option=None):
         self.transform = transforms.Compose([
             transforms.ToPILImage(),
@@ -86,11 +70,11 @@ class Extractor:
         new_model = Autoencoder()
         #
         if option == 'load':
-            new_model.load_state_dict(torch.load("./models/pomdp_autoencoder_sz16.pth", map_location=torch.device('cpu')))
+            new_model.load_state_dict(torch.load(self.MODEL_LOAD_PATH, map_location=torch.device(self.MODEL_DEVICE)))
         if option == 'save':
-            torch.save(new_model.state_dict(), "./models/pomdp_autoencoder_new.pth")
+            torch.save(new_model.state_dict(), self.MODEL_SAVE_PATH)
         # Change the device to GPU
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
+        self.device = self.MODEL_DEVICE #torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
         self.model = new_model.to(self.device)
 
        #TODO latent_space_size
