@@ -76,7 +76,7 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     o_points = choice_beta_values   #Points that the user can randomly select
     #Solver Definition
     randomMDP = FORollout(RandomSolver())
-    solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
+    solver = POMCPSolver(tree_queries=100, c=5.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 
     #Get statistics on initial set of user points
     phi = Array{Float64}(undef,length(u_points[1])-3)
@@ -105,8 +105,11 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
     # println(phi)
-    p_belief = init_PF(phi[1:3],data_vec[4:end],p)
-
+    if typeof(user_ideal_nn) == Bool
+        p_belief = init_PF(phi[1:3],false,p)
+    else
+        p_belief = init_PF(phi[1:3],data_vec[4:end],p)
+    end
     accepted_points = []
     user_points = []
     denied_points = []

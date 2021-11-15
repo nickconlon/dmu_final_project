@@ -1,6 +1,7 @@
 #This script creates and runs Monte_Carlo testing 
 using HypothesisTests
 using Plots
+using LaTeXStrings
 
 include("data_read.jl")
 include("plot_image.jl")
@@ -27,13 +28,14 @@ include("all_data.jl")
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
-
+case = "Corners.png"
 filename = "./data/out_images/testimage.png" #Final image for saving
-filename_final = "./data/out_images/RoadEdge_final.png"
-brier_filename = "./data/out_images/Brier_Score_Road.png" #Final image for saving
-acc_filename = "./data/out_images/Accuracy_Road.png"
-plot_title = "Accuracy for Building Case"
-save_image = false # should images be saved
+filename_final = "./data/out_images/Propagation_"*case
+brier_filename = "./data/out_images/Brier_Score_"*case #Final image for saving
+acc_filename = "./data/out_images/Accuracy_"*case
+combined_filename = "./data/out_images/combined_"*case
+plot_title = L"\textrm{Building\; Case}"
+save_image = true # should images be saved
 #Choose a user model
 #user = user_expert
 user_label = "Expert"
@@ -53,22 +55,23 @@ user_label = "Expert"
 # user_ideal_seg = [0.876, 0.102006, 0.022004]
 # user_ideal_seg = [0.99,0.01,0.01]
 # user_ideal_nn = [[5.611148545410156, 3.6751314206677557], [40.754514786865236, 20.74506312483868], [38.24892883300781, 10.13161907748458], [1e-05, 1e-05], [1e-05, 1e-05], [1e-05, 1e-05], [1e-05, 1e-05], [37.147728729248044, 8.140464585307537], [1e-05, 1e-05], [1.7446294280548096, 1.136748576368496], [35.64239311218262, 5.241401764333165], [12.73976674079895, 10.463944025736266], [1e-05, 1e-05], [1e-05, 1e-05], [39.2167423248291, 7.985361368713226], [55.322322082519534, 7.976847365299413]]
-# user_data = user_building[1:2]
+# user_ideal_nn = false
+# user_data = vcat(user_building[1:2],random_data[5:7])
 # user_type = "building"
 # truth_data = [32, 33, 34, 35, 36]
 # secondary_data = [22,23,24,25,26,1,2,3,4,5,16,17,18,19,20,21]
 
 # Road
-user_ideal_seg = [1e-05, 0.97, 0.030008]
-user_ideal_seg = [1e-05,0.99,0.01]
-user_ideal_nn = [[1e-05, 1e-05], [1e-05, 1e-05], [5.555718803405762, 0.2809410421740831], [1.0793159246444701, 0.2885174684541006], [1e-05, 1e-05], [0.38576561536979675, 0.20474108574479344], [1e-05, 1e-05], [2.032072591781616, 0.6365200213556083], [1e-05, 1e-05], [1e-05, 1e-05], [17.133995628356935, 4.820499085774453], [32.40111312866211, 2.1944726251520614], [1e-05, 1e-05], [1e-05, 1e-05], [6.844200801849365, 1.4105408165540374], [34.5301513671875, 0.17751821647618413]]
-# user_ideal_nn = false
-# user_data = user_road[1:2]
-# user_data = vcat(user_road[1:2],random_data[5:7])
-user_data = random_data[5:6]
-user_type = "road"
-truth_data = [27, 28, 29, 30, 31]
-secondary_data = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+# user_ideal_seg = [1e-05, 0.97, 0.030008]
+# user_ideal_seg = [1e-05,0.99,0.01]
+# user_ideal_nn = [[1e-05, 1e-05], [1e-05, 1e-05], [5.555718803405762, 0.2809410421740831], [1.0793159246444701, 0.2885174684541006], [1e-05, 1e-05], [0.38576561536979675, 0.20474108574479344], [1e-05, 1e-05], [2.032072591781616, 0.6365200213556083], [1e-05, 1e-05], [1e-05, 1e-05], [17.133995628356935, 4.820499085774453], [32.40111312866211, 2.1944726251520614], [1e-05, 1e-05], [1e-05, 1e-05], [6.844200801849365, 1.4105408165540374], [34.5301513671875, 0.17751821647618413]]
+# # user_ideal_nn = false
+# # user_data = user_road[1:2]
+# # user_data = vcat(user_road[1:2],random_data[5:7])
+# user_data = vcat([user_road[1]],random_data[5:6])
+# user_type = "road"
+# truth_data = [27, 28, 29, 30, 31]
+# secondary_data = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 
 # Back
 #user_ideal_seg = [0.372, 0.0020080000000000002, 0.6220000000000001]
@@ -80,6 +83,7 @@ secondary_data = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 
 # Front
 # user_ideal_seg = [0.54, 0.33199999999999996, 0.128006]
+# user_ideal_seg = [0.5,0.5,0.001]
 # user_ideal_nn = [[8.847843448120118, 12.851326194407378], [27.715496441986083, 38.197716820425676], [22.196852111816405, 12.32615385958663], [0.2192107655582428, 0.3885625852955098], [1e-05, 1e-05], [1e-05, 1e-05], [1e-05, 1e-05], [22.557515716552736, 6.615757740995593], [1e-05, 1e-05], [0.48818081723022466, 0.9763416344604491], [33.26570091247559, 7.232214165523874], [19.296277568008424, 15.032755762533423], [1e-05, 1e-05], [1e-05, 1e-05], [32.65738162994385, 23.796163088253188], [37.97206153869629, 9.267686475204695]]
 # user_data = user_frontdoor
 # user_type = "frontdoor"
@@ -87,29 +91,32 @@ secondary_data = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 # secondary_data = [1,2,3,4,5,32, 33, 34, 35, 36]
 
 # Corner
-#user_ideal_seg = [0.298, 0.2060060, 0.502]
-#user_ideal_nn = [[4.214598454101562, 8.429176908203125], [23.07781505041504, 22.21016878529063], [18.18980860710144, 14.785874159968039], [0.6877232442932129, 1.375426488586426], [1e-05, 1e-05], [1e-05, 1e-05], [1e-05, 1e-05], [16.424647045135497, 6.682789494377721], [1e-05, 1e-05], [0.42366331921386724, 0.8473066384277343], [22.659137153625487, 12.560100206768894], [12.249711794189455, 10.369474015431784], [1e-05, 1e-05], [1e-05, 1e-05], [21.529578685760498, 16.764819284370738], [30.49309959411621, 7.321425482659588]]
-#user_data = user_corner
-#user_type = "corner"
-#truth_data = [16,17,18,19,20,21]
-#secondary_data = [32, 33, 34, 35, 36,1,2,3,4,5,22,23,24,25,26]
+user_ideal_seg = [0.298, 0.2060060, 0.502]
+user_ideal_seg = [0.25,0.75,0.15]
+user_ideal_nn = [[4.214598454101562, 8.429176908203125], [23.07781505041504, 22.21016878529063], [18.18980860710144, 14.785874159968039], [0.6877232442932129, 1.375426488586426], [1e-05, 1e-05], [1e-05, 1e-05], [1e-05, 1e-05], [16.424647045135497, 6.682789494377721], [1e-05, 1e-05], [0.42366331921386724, 0.8473066384277343], [22.659137153625487, 12.560100206768894], [12.249711794189455, 10.369474015431784], [1e-05, 1e-05], [1e-05, 1e-05], [21.529578685760498, 16.764819284370738], [30.49309959411621, 7.321425482659588]]
+user_data = user_corner
+user_type = "corner"
+truth_data = [16,17,18,19,20,21]
+secondary_data = [32, 33, 34, 35, 36,1,2,3,4,5,22,23,24,25,26]
 
 # Road edges
 # user_ideal_seg = [1e-05, 0.27599999999999997, 0.724]
-# user_ideal_seg = [1e-05,0.5,0.5]
+# # user_ideal_seg = [1e-05,0.5,0.5]
 # user_ideal_nn = [[0.029287261827468873, 0.05855452365493774], [0.04013599859046936, 0.08025199718093873], [2.3334914749183655, 2.674239379582739], [4.955508420135498, 3.108996088683162], [1e-05, 1e-05], [2.342380830909729, 1.4732283557985926], [1e-05, 1e-05], [2.217990652519226, 3.913033456807154], [1e-05, 1e-05], [0.5940385260162354, 0.733404415789601], [13.246929794549942, 11.246110707197277], [10.749766969680786, 6.105504994570322], [1e-05, 1e-05], [0.09859951244163515, 0.19717902488327027], [2.3827168383178714, 3.2026035714198313], [12.619472789764405, 8.083957458953995]]
-# # user_ideal_nn = false
-# user_data = user_road_edges[1:3]
+# # user_data = vcat(user_road_edges[1:2],random_data[7:10])
+# user_data = user_road_edges[1:2]
 # user_type = "road_edge"
 # truth_data = [6,7,8,9,10]
 # secondary_data = [11,12,13,14,15,27, 28, 29, 30, 31]
 
 # Road intersections
-#user_ideal_seg = [1e-05, 0.558, 0.442]
-#user_ideal_nn = [[1e-05, 1e-05], [1e-05, 1e-05], [3.9585901277918816, 4.406314752063278], [4.040073749687195, 3.3601555698640104], [1e-05, 1e-05], [1.898380154899597, 2.1228981830786333], [1e-05, 1e-05], [2.504726189903259, 2.821085549317644], [1e-05, 1e-05], [0.01095986769962311, 0.021899735399246216], [10.891311740875244, 5.356829320262097], [19.066756820678712, 7.816261426255367], [1e-05, 1e-05], [1e-05, 1e-05], [4.188327450088501, 4.842259682880136], [21.14072780609131, 7.742384523856947]]
-#user_data = user_road_intersection
-#user_type = "road_intersection"
-#truth_data = [11,12,13,14,15]
+# user_ideal_seg = [1e-05, 0.558, 0.442]
+# user_ideal_seg = [0.001,0.75,0.25]
+# user_ideal_nn = [[1e-05, 1e-05], [1e-05, 1e-05], [3.9585901277918816, 4.406314752063278], [4.040073749687195, 3.3601555698640104], [1e-05, 1e-05], [1.898380154899597, 2.1228981830786333], [1e-05, 1e-05], [2.504726189903259, 2.821085549317644], [1e-05, 1e-05], [0.01095986769962311, 0.021899735399246216], [10.891311740875244, 5.356829320262097], [19.066756820678712, 7.816261426255367], [1e-05, 1e-05], [1e-05, 1e-05], [4.188327450088501, 4.842259682880136], [21.14072780609131, 7.742384523856947]]
+# # user_data = user_road_intersection
+# user_data = vcat(user_road_intersection[1:2],random_data[3:4])
+# user_type = "road_intersection"
+# truth_data = [11,12,13,14,15]
 # secondary_data = [11,12,13,14,15,27, 28, 29, 30, 31]
 
 num_guess = 15
@@ -164,7 +171,7 @@ for u in 1:1
         r,c = size(hist.final_points)
         for g in 1:num_guess
             # Calculate accuracy at every guess point
-            acc_score_hist[i,g] = accuracy_score(hist.final_points[:,g],truth_data,secondary_data)
+            global acc_score_hist[i,g] = accuracy_score(hist.final_points[:,g],truth_data,secondary_data)
             # print(hist.final_points[:,g])
         end
 
@@ -174,9 +181,11 @@ for u in 1:1
     local x = range(1,num_guess,length = num_guess)
     if u == 1
         local x = range(0,num_guess+1,length = num_guess+1)
-        global p_MSE = plot(x,brier_plot[1,:],ribbon = brier_plot[2,:],label = user_label)
+        global p_MSE = plot(x,brier_plot[1,:],ribbon = brier_plot[2,:],label = user_label,
+        title= plot_title, xlabel= L"\textrm{User\;  Suggestions}",ylabel = L"\textrm{Mean\;  Error}")
         local x = range(1,num_guess,length = num_guess)
-        global p_acc = plot(x,acc_plot[1,:],ribbon = acc_plot[2,:],label = user_label)
+        global p_acc = plot(x,acc_plot[1,:],ribbon = acc_plot[2,:],label = user_label,
+        title = plot_title, xlabel = L"\textrm{User\;  Suggestions}",ylabel = L"\textrm{Accuracy}")
     else
         # plot!(x,brier_plot[1,:],ribbon = brier_plot[2,:],label = user_label)
         plot!(x,acc_plot[1,:],ribbon = acc_plot[2,:],label = user_label)
@@ -192,28 +201,28 @@ p_x,p_y = extract_xy(chosen_idx,final_points_data)
 
 
 #Initiate User Selection for EXPERT
-user = user_expert
+# user = user_expert
 # user_avg_belief_exp = user_select_MC(user_set_betas,points_data,user,user_ideal_seg,user_ideal_nn,MC_runs,num_guess)
 #Sum briers
-user_brier_plot_exp = brier_crunch(user_avg_belief_exp,MC_runs,num_guess+length(user_set_betas))
+# user_brier_plot_exp = brier_crunch(user_avg_belief_exp,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
-x = range(0,num_guess+1,length = num_guess+1)
+# x = range(0,num_guess+1,length = num_guess+1)
 #p = plot!(x,user_brier_plot_exp[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_exp[2,length(user_set_betas)+1:end],label =:"Expert Average")
 
 #Initiate User Selection for NOVICE
-user = user_novice
+# user = user_novice
 # user_avg_belief_nov = user_select_MC(user_set_betas,points_data,user,user_ideal_seg,user_ideal_nn,MC_runs,num_guess)
 #Sum brier 
-user_brier_plot_nov = brier_crunch(user_avg_belief_nov,MC_runs,num_guess+length(user_set_betas))
+# user_brier_plot_nov = brier_crunch(user_avg_belief_nov,MC_runs,num_guess+length(user_set_betas))
 #Plot user data
-x = range(0,num_guess+1,length = num_guess+1)
+# x = range(0,num_guess+1,length = num_guess+1)
 #p = plot!(x,user_brier_plot_nov[1,length(user_set_betas)+1:end],ribbon = user_brier_plot_nov[2,length(user_set_betas)+1:end],label =:"Novice Average")
 
 #Greedy Policy
 
-title!(plot_title)
-xlabel!("User Suggestions")
-ylabel!("Accuracy")
+# title!(plot_title)
+# xlabel!(L"\textrm{User Suggestions}")
+# ylabel!(L"\textrm{Accuracy}")
 # display(p)
 if save_image
     # savefig(p_acc, brier_filename)
@@ -236,17 +245,21 @@ p_guess = plot_image(guess_image,[i_x,i_y],[u_x,u_y], [a_x,a_y], [d_x,d_y], file
 # title!("Accuracy: "*string(length(correct_data)/(length(correct_data)+length(wrong_data))))
 acc_score = accuracy_score(chosen_idx,truth_data,secondary_data)
 cat_score = find_categories(chosen_idx)
-names = ["Frontdoor","Edges","Intersections","Corners","Backdoor","Road","Building","Other"]
+names = [L"\textrm{Frontdoor}",L"\textrm{Edges}",L"\textrm{Intersections}",L"\textrm{Corners}",L"\textrm{Backdoor}",
+L"\textrm{Road}",L"\textrm{Building}",L"\textrm{Other}"]
 p_bar = bar(names,
             [cat_score[1],cat_score[2],cat_score[3],cat_score[4],cat_score[5],cat_score[6],cat_score[7],cat_score[8]],
-            labels = names,
-            title = "Accuracy: "*string(acc_score),
-            ylabel = "Number of Guesses",
+            xrotation=45,labels = names,
+            title = L"\textrm{Accuracy: %$acc_score}",
+            ylabel = L"\textrm{Number\; of\; Guesses}",
             legend = false)
 
 l = @layout [a b; c d] 
 full = plot(p_acc,p_bar,p_MSE,p_guess, layout = l)
 display(full)
+if save_image
+    savefig(full, combined_filename)
+end
 
 out_array = []
 for i in user_ideal_nn

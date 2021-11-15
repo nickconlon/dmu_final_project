@@ -360,6 +360,7 @@ def decode_img():
 
 if __name__ == "__main__":
     #gen_training_data()
-    start_train()
+    # start_train()
     #plot_encoding_comparisons('models/testing_data/', 'models/pomdp_ae_sz16.pth')
+    decode_img()
 
