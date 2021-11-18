@@ -90,9 +90,9 @@ function find_categories(chosen_idx)
             score[5] += 1
         elseif i<= 31 # road
             score[6] += 1
-        elseif i<= 36
+        elseif i<= 36 # building
             score[7] += 1
-        else
+        else          # other
             score[8] += 1
         end
     end

@@ -27,6 +27,11 @@ function sample_new_point(points,ideal_seg::Vector{Float64},ideal_nn,user,bad_po
             choice_dist = Dirichlet(ideal_seg*user.certainty)
             #Sample from distribution
             choice_phi = rand(choice_dist,1)
+        elseif typeof(ideal_seg) == Bool # If segmentation is not being used
+            #Create distribution     
+            choice_dist = user_dist(ideal_seg,ideal_nn)
+            #Sample from distribution
+            choice_phi = rand_user_dist(choice_dist,1)[1]
         else # If nn features are being used
              #Create distribution     
             choice_dist = user_dist(ideal_seg*user.certainty,ideal_nn)
@@ -56,15 +61,20 @@ end
 function sample_user_response(point,ideal_seg,ideal_nn,user)
     #This function samples a user's response to a suggested point
     if typeof(ideal_nn) == Bool # If nn is not being used   
-            choice_dist = Dirichlet(ideal_seg*user.certainty)
-            #Sample from distribution
-            choice_phi = rand(choice_dist,1)
-        else # If nn features are being used
-             #Create distribution     
-            choice_dist = user_dist(ideal_seg*user.certainty,ideal_nn)
-            #Sample from distribution
-            choice_phi = rand_user_dist(choice_dist,1)[1]
-        end
+        choice_dist = Dirichlet(ideal_seg*user.certainty)
+        #Sample from distribution
+        choice_phi = rand(choice_dist,1)
+    elseif typeof(ideal_seg) == Bool # If segmentation is not being used
+        # Create distribution
+        choice_dist = user_dist(ideal_seg,ideal_nn)
+        # Sample from distribution
+        choice_phi = rand_user_dist(choice_dist,1)[1]
+    else # If nn features are being used
+            #Create distribution     
+        choice_dist = user_dist(ideal_seg*user.certainty,ideal_nn)
+        #Sample from distribution
+        choice_phi = rand_user_dist(choice_dist,1)[1]
+    end
     #Compare point similarity
     sim = similarity(point,choice_phi)
 
@@ -101,6 +111,18 @@ function user_dist(seg_ideal::Vector{Float64},nn_ideal::Bool)
     return seg_dist
 end
 
+
+function user_dist(seg_ideal::Bool,nn_ideal)
+    """Companion method if only neural network is used, creates a distribution and outputs a series of normal distributions"""
+    # Create initial array
+    distributions = Array{Any}(undef,length(nn_ideal))
+    #Generate required set of samples
+    for f in 1:length(nn_ideal)
+        distributions[f] = TruncatedNormal(nn_ideal[f][1],nn_ideal[f][2],0,Inf)
+    end
+    return distributions
+end
+
 function rand_user_dist(u_dist,n)
     """Function takes in a vector of distributions and generates n respective samples"""
     samples = zeros(n)
@@ -112,9 +134,14 @@ function rand_user_dist(u_dist,n)
             samples = [rand(d) for s in 1:n]
         # Handle other normal distrubtions
         else
-            val = [rand(d) for s in 1:n]
-            # Combine all features into single vector array
-            samples = [vcat(samples[i],val[i]) for i in 1:n]
+            # Check if Dirichlet/segmentation not being used. Requires different method of combining
+            if samples[1] == 0.0 # If the first element in the array is being added
+                samples = [rand(d) for s in 1:n] 
+            else 
+                val = [rand(d) for s in 1:n]
+                # Combine all features into single vector array
+                samples = [vcat(samples[i],val[i]) for i in 1:n]
+            end
         end
     end
     return samples

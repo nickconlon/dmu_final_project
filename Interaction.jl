@@ -81,7 +81,6 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     #Get statistics on initial set of user points
     phi = Array{Float64}(undef,length(u_points[1])-3)
     cov = Array{Float64}(undef,length(u_points[1])-3)
-    combined_vec = Matrix{Float64}(undef,length(u_points[1])-3,2)
     data_vec = Array{Array{Float64}}(undef,length(u_points[1])-3)
     for i in 4:length(u_points[1])
         ave_i = mean([u_points[a][i] for a in 1:length(u_points)])
@@ -105,8 +104,10 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
     # println(phi)
-    if typeof(user_ideal_nn) == Bool
+    if typeof(user_ideal_nn) == Bool # If only using seg
         p_belief = init_PF(phi[1:3],false,p)
+    elseif typeof(user_ideal_seg) == Bool # If only using nn 
+        p_belief = init_PF(false,data_vec[4:end],p)
     else
         p_belief = init_PF(phi[1:3],data_vec[4:end],p)
     end
