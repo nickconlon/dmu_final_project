@@ -46,14 +46,14 @@ end
 function similarity(x, y)
     # Similarity metric calculator
     if length(x)!= length(y)
-        if length(x)==3 | length(y) == 3
+        if (length(x)==3) | (length(y) == 3)
             return 1-cosine_dist(x[1:3],y[1:3])
         elseif length(y) == 16  # If nn only is being used
             return 1-cosine_dist(x[4:end],y)
         elseif length(x) == 16  # nn only being used
             return 1-cosine_dist(x,y[4:end])
         else
-            println("Vector Length",length(x)," ",length(y))
+            println("Vector Length ",length(x)," ",length(y))
             error("Similarity vector inconsistency")
         end
     else

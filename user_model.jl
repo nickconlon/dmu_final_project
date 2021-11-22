@@ -19,7 +19,7 @@ user_novice = User_Model(novice_accuracy, novice_certainty,novice_availability)
 user_expert = User_Model(expert_accuracy, expert_certainty,expert_availability)
 user_test = User_Model(test_accuracy, test_certainty,test_availability)
 
-function sample_new_point(points,ideal_seg::Vector{Float64},ideal_nn,user,bad_points)
+function sample_new_point(points,ideal_seg,ideal_nn,user,bad_points)
     #Determine point accuracy
     if rand(Float64,1)[1]<=user.accuracy #Accurate guess
         #Create distribution

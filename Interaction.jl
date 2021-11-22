@@ -103,6 +103,7 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     #Create Gaussian Distribution
     p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
+    greedy = false # Greedy policy toggle
     # println(phi)
     if typeof(user_ideal_nn) == Bool # If only using seg
         p_belief = init_PF(phi[1:3],false,p)
@@ -129,9 +130,17 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
         model_step = guess_steps+1-step  # Lets solver know how many steps are left
         PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step)  # Define POMDP
         planner = solve(solver, PE_fun)
-        a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-        # inchrome(D3Tree(info[:tree], init_expand=3))
-        
+        # Solver option
+        if greedy == true # Greedy policy
+            best_points = [s_points[parse(Int64,idx)] for idx in best_points_idx]
+            a_idx,a_phi = find_similar_points(best_points,mean(p_belief.states),1,[])
+            a = a_idx[1]
+        else # POMCP solver
+            best_phi = mean(p_belief.states)
+            mid_state(rng) = State(best_phi,[],model_step)
+            a, info = action_info(planner, ImplicitDistribution(mid_state), tree_in_info=false)
+            # inchrome(D3Tree(info[:tree], init_expand=3))
+        end
         # Action response 
         if a == "wait"
             #Randomly sample point based on user model

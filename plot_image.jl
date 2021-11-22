@@ -9,7 +9,7 @@ SUGGEST_COLOR = "green"
 function plot_image(image,init_points,user_points, suggestions, denied, fname,save)
     img = load(image)
     legend = false
-    plot(img)
+    plot(img,title = L"\textrm{Interaction}")
     if length(init_points)>0
         scatter!(init_points[1], init_points[2], color=USER_INIT,markersize = 5, label="init",legend =legend)
     end
