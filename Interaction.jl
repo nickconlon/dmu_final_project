@@ -13,21 +13,21 @@ include("plot_image.jl")
 include("user_model.jl")
 include("PE_POMDP_Def.jl")
 include("ParticleFilter_Def.jl")
-
+include("all_data.jl")
 #Load point data
-random_data = read_data("./data/random_data.csv")
-random_data_300 = read_data("./data/random_data_300.csv")
-neighborhood_data = read_data("./data/neighborhood_350.csv")
+#random_data = read_data("./data/random_data.csv")
+#random_data_300 = read_data("./data/random_data_300.csv")
+#neighborhood_data = read_data("./data/neighborhood_350.csv")
 
 #User Data
-user_frontdoor = read_data("./data/user_frontdoor.csv")
-user_backdoor = read_data("./data/user_backdoor.csv")
-user_building = read_data("./data/user_building.csv")
-user_road = read_data("./data/user_road.csv")
-test_points = read_data("./data/user_test.csv")
-user_road_edges = read_data("./data/user_roadedges.csv")
-points_data = random_data_300 #* (100/30)
-final_points_data = neighborhood_data #
+#user_frontdoor = read_data("./data/user_frontdoor.csv")
+#user_backdoor = read_data("./data/user_backdoor.csv")
+#user_building = read_data("./data/user_building.csv")
+#user_road = read_data("./data/user_road.csv")
+#test_points = read_data("./data/user_test.csv")
+#user_road_edges = read_data("./data/user_roadedges.csv")
+#points_data = random_data_300 #* (100/30)
+#final_points_data = neighborhood_data #
 
 # Points operator has chosen: 
 ### ---  MODIFY TEST CASE HERE  --- ###
@@ -36,11 +36,18 @@ filename = "./data/out_images/testimage.png" #Final image for saving
 filename_final = "./data/out_images/test_final_image.png" #Final image for saving
 
 #Choose a user model
-user = user_novice
-user_ideal = [0.5,0.45,0.05] #[%building,%road,%other]
-user_data = user_road
+user = user_expert
+user_ideal_seg = [0.00000001, 0.0000001, 0.9]
+user_ideal_nn = [[0.08346421148967743, 0.04177651971949443], [0.6093180656433106, 0.07183852277137336], [0.5235927999019623, 0.4045040188454945], [1e-05, 1e-05], [0.01119926002216339, 0.005628560484132032], [1e-05, 1e-05], [1e-05, 1e-05], [0.6368522535400392, 1.2736845070800782], [1e-05, 1e-05], [1e-05, 1e-05], [1.2064823041992185, 2.412944608398438], [0.46875049322843554, 0.7340491610814214], [1e-05, 1e-05], [1e-05, 1e-05], [0.618419075012207, 0.2973534003146158], [0.9566195964813232, 1.6243710679662033]]
+
+user_data = user_other
 #Number of steps before making selection
 num_guess = 1
+
+struct history
+    p_belief::Vector{InjectionParticleFilter}
+    final_points::Matrix{String}
+end
 
 function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,choice_points,user_mode,guess_steps)
     #Input:
@@ -69,20 +76,22 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     o_points = choice_beta_values   #Points that the user can randomly select
     #Solver Definition
     randomMDP = FORollout(RandomSolver())
-    solver = POMCPSolver(tree_queries=100, c=100.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
+    solver = POMCPSolver(tree_queries=100, c=5.0, rng=MersenneTwister(1), tree_in_info=true,estimate_value = randomMDP)
 
     #Get statistics on initial set of user points
-    phi = []
-    cov = []
+    phi = Array{Float64}(undef,length(u_points[1])-3)
+    cov = Array{Float64}(undef,length(u_points[1])-3)
+    data_vec = Array{Array{Float64}}(undef,length(u_points[1])-3)
     for i in 4:length(u_points[1])
         ave_i = mean([u_points[a][i] for a in 1:length(u_points)])
-        push!(phi, ave_i)
+        phi[i-3] = ave_i
         cov_i = std([u_points[a][i] for a in 1:length(u_points)])
-        push!(cov, cov_i)
+        cov[i-3] = cov_i
+        data_vec[i-3] = [ave_i,cov_i]
     end
 
-    phi = phi/norm(phi)  # Normalize
-    cov = cov/norm(cov)
+    phi[1:3] = phi[1:3]/norm(phi[1:3])  # Normalize
+    # cov = cov/norm(cov)
     #Any zero values must be made non-zero to make phi a positive vector in Dirichlet Dist.
     for a in 1:length(phi)
         if phi[a] == 0.0
@@ -94,26 +103,44 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
     #Create Gaussian Distribution
     p = 1000 #Number of particles
     p_sample = 10 #Number of user actions to consider --> Size of action space
-    p_belief = init_PF(user_ideal_seg,user_ideal_nn,p)
-
+    greedy = false # Greedy policy toggle
+    # println(phi)
+    if typeof(user_ideal_nn) == Bool # If only using seg
+        p_belief = init_PF(phi[1:3],false,p)
+    elseif typeof(user_ideal_seg) == Bool # If only using nn 
+        p_belief = init_PF(false,data_vec[4:end],p)
+    else
+        p_belief = init_PF(phi[1:3],data_vec[4:end],p)
+    end
     accepted_points = []
     user_points = []
     denied_points = []
     suggested_points = []
+    
     p_belief_history = Array{InjectionParticleFilter}(undef,guess_steps+1)
+    guess_points = Array{String}(undef,5,guess_steps+1)
+    hist = history(p_belief_history,guess_points)
     best_points_idx,best_points_phi = find_similar_points(s_points,phi,p_sample,[])
     for step in 1:guess_steps+1
         #Save particle belief
-        p_belief_history[step] = p_belief
+        hist.p_belief[step] = p_belief
         #Initialize POMDP with new action space: Figure out best action
         #   Input into POMDP is only the beta values
         #   Output is the index of the suggested value or "wait"
         model_step = guess_steps+1-step  # Lets solver know how many steps are left
         PE_fun =  PE_POMDP(u_points,best_points_phi,o_points,f_points,user_mode,0.99,model_step)  # Define POMDP
         planner = solve(solver, PE_fun)
-        a, info = action_info(planner, initialstate(PE_fun), tree_in_info=false)
-        # inchrome(D3Tree(info[:tree], init_expand=3))
-        
+        # Solver option
+        if greedy == true # Greedy policy
+            best_points = [s_points[parse(Int64,idx)] for idx in best_points_idx]
+            a_idx,a_phi = find_similar_points(best_points,mean(p_belief.states),1,[])
+            a = a_idx[1]
+        else # POMCP solver
+            best_phi = mean(p_belief.states)
+            mid_state(rng) = State(best_phi,[],model_step)
+            a, info = action_info(planner, ImplicitDistribution(mid_state), tree_in_info=false)
+            # inchrome(D3Tree(info[:tree], init_expand=3))
+        end
         # Action response 
         if a == "wait"
             #Randomly sample point based on user model
@@ -155,8 +182,12 @@ function _run(user_data,user_ideal_seg,user_ideal_nn,guess_points,final_points,c
             best_points_idx[sample] = idx[1]
             best_points_phi[sample] = phi[1]
         end
+
+        # Propagate set of final points for record keeping
+        chosen = final_guess(final_points,p_belief,5)
+        hist.final_points[:,step] = chosen
     end
-    return p_belief,user_points,accepted_points,denied_points,p_belief_history
+    return p_belief,user_points,accepted_points,denied_points,hist
 end
 
 belief,user_points,accepted_points,denied_points = _run(user_data,user_ideal,false,points_data,final_points_data,random_data,user,num_guess)

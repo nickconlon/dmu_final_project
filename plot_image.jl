@@ -8,25 +8,27 @@ SUGGEST_COLOR = "green"
 
 function plot_image(image,init_points,user_points, suggestions, denied, fname,save)
     img = load(image)
-    plot(img)
+    legend = false
+    plot(img,title = L"\textrm{Interaction}")
     if length(init_points)>0
-        scatter!(init_points[1], init_points[2], color=USER_INIT,markersize = 5, label="init",legend =false)
+        scatter!(init_points[1], init_points[2], color=USER_INIT,markersize = 5, label="init",legend =legend)
     end
     if length(user_points)>0
-        scatter!(user_points[1], user_points[2], color=USER_COLOR, markersize = 5, label="user",legend = false)
+        scatter!(user_points[1], user_points[2], color=USER_COLOR, markersize = 5, label="user",legend = legend)
     end
     if length(denied)>0
-        scatter!(denied[1], denied[2], color="red", label="denied", markersize = 5, legend = false)
+        scatter!(denied[1], denied[2], color="red", label="denied", markersize = 5, legend = legend)
     end
     if length(suggestions)>0
-        a = scatter!(suggestions[1], suggestions[2], color=SUGGEST_COLOR, markersize = 5, label="suggested",legend = false)
+        a = scatter!(suggestions[1], suggestions[2], color=SUGGEST_COLOR, markersize = 5, label="suggested",legend = legend)
     end
-    # pt = plot(1:10, 1:10, label="A", legend=false)
+    # pt = plot(1:10, 1:10, label="A", legend=legend)
     # a.o[:legend](bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
     display(a)
     if save
         savefig(a, fname)
     end
+    return a
 end
 
 
