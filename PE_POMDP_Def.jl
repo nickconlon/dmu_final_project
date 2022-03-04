@@ -72,7 +72,15 @@ function sample_initial_state(m)
     for i in 1:length(phi)
         init_cov[i,i] = cov[i]^2
     end
-    return State(phi,[],0)
+    # Create Dirichlet distribution
+    phi = phi*m.user.certainty
+    for (idx,i) in enumerate(phi)
+        if i==0
+            phi[idx] = 0.001
+        end
+    end
+    phi_dist = rand(Dirichlet(phi))
+    return State(phi_dist,[],0)
 end
 
 #--- POMDP Definition ---#
@@ -96,20 +104,34 @@ end
 function POMDPs.initialstate(m::PE_POMDP)
     function init_state(rng)
         POI = m.user_points  
-        phi = []
+        means = []
         cov = []
         for i in 4:length(POI[1])
             ave_i = mean([POI[a][i] for a in 1:length(POI)])
-            push!(phi, ave_i)
+            push!(means, ave_i)
             cov_i = std([POI[a][i] for a in 1:length(POI)])
             push!(cov, cov_i)
         end
-        phi = phi/norm(phi)  # Normalize
-        init_cov = zeros(length(phi), length(phi))
-        for i in 1:length(phi)
-            init_cov[i,i] = cov[i]^2
+        means = means/norm(means)  # Normalize
+        # Make sure nothing is equal to zero
+        for (idx,i) in enumerate(means)
+            if i==0
+                means[idx] = 0.0001
+            end
         end
-        new_state = State(phi,[],0)
+        # Sample the set of means to find the initial state
+        state_vec = zeros(length(means))
+        state_vec[1:3] = [rand(Dirichlet(means))[i] for i in 1:3]
+        for (idx,i) in enumerate(means)
+            if idx>3
+                state_vec[idx] = rand(TruncatedNormal(i,cov[idx],0,100))
+            end
+        end
+        # init_cov = zeros(length(phi), length(phi))
+        # for i in 1:length(phi)
+        #     init_cov[i,i] = cov[i]^2
+        # end
+        new_state = State(state_vec,[],0)
         return new_state
     end
     r = ImplicitDistribution(init_state)
@@ -157,7 +179,7 @@ function POMDPs.observation(m::PE_POMDP,s,a,sp)
         p_a = []
         acts = []
         # Look through all actions and see which one the user is most likely to add
-        for (i, act) in enumerate(actions(m,s))  # How does this work?
+        for (i, act) in enumerate(actions(m,s))  # list out indexes and specific actions
             if act != "wait"
                 b = beta_values[parse(Int64,act)] # (x,y,z)
                 out = sample_initial_state(m)
